@@ -1,0 +1,374 @@
+# API Specification
+
+*OAS — OpenAPI-Aligned REST Specification*
+
+**Project:** Campaign Integrity API
+
+**Version:** 1.0 (Draft)
+
+**Status:** Draft
+
+**Based On:** SRS v1.0 (FR-001, FR-004, FR-005, FR-008–FR-010), TAS v1.0, Detection Engine Specification v1.0
+
+## 1. Purpose & Conventions
+
+This document specifies the REST API surface for Campaign Integrity API in OpenAPI-compatible terms: resources, methods, request/response schemas, auth, and error handling. It is the source of truth for generating the machine-readable openapi.yaml during Phase 4.
+
+### 1.1 Base URL
+
+https://api.campaignintegrity.io/v1
+
+### 1.2 Conventions
+
+- All request/response bodies are JSON (application/json).
+
+- All timestamps are ISO 8601 UTC (e.g. 2026-08-01T14:32:00Z).
+
+- Identifiers are UUIDv4 unless noted.
+
+- Pagination uses page (1-indexed) and pageSize query params; responses include a pagination object with total, page, pageSize.
+
+- Every internal analyzer score, weight, and threshold described in the Detection Engine Specification is intentionally absent from every response body in this document — only Risk Score, Risk Level, and Evidence are exposed (DES §9).
+
+## 2. Authentication
+
+Two independent auth mechanisms are supported — see the Authentication & Authorization Design document for full detail.
+
+- Agency API access: API key in the Authorization header — Authorization: Bearer \<api_key\>. Used for all /submissions, /analyses, and /campaigns endpoints.
+
+- Dashboard (internal user) access: short-lived JWT access token, obtained via /auth/login, sent as Authorization: Bearer \<jwt\>, refreshed via /auth/refresh.
+
+## 3. Standard Error Format
+```
+{
+"error": {
+"code": "VALIDATION_ERROR",
+"message": "postUrl must be a valid X post URL",
+"details": {}
+}
+}
+```
+Common error codes: VALIDATION_ERROR (400), UNAUTHORIZED (401), FORBIDDEN (403), NOT_FOUND (404), DUPLICATE_SUBMISSION (409), RATE_LIMITED (429), ANALYSIS_FAILED (422), INTERNAL_ERROR (500).
+
+## 4. Rate Limiting
+
+Every response includes rate-limit headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset (unix timestamp). Limits are scoped per API key, per the Authentication & Authorization Design document.
+
+## 5. Submissions
+
+| **POST** | **/v1/submissions** |
+|----------|---------------------|
+
+#### Submit an X post for analysis (FR-001).
+
+Queues the post for the Detection Engine pipeline (collect → validate → analyze). Returns immediately with status=queued; poll GET /v1/submissions/{id} or GET /v1/submissions/{id}/analysis for the result.
+
+**Auth:** API key
+
+#### Request Body
+```
+{
+"postUrl": "https://x.com/creator/status/1234567890",
+"campaignId": "3fa85f64-5717-4562-b3fc-2c963f66afa6", // optional
+"externalSubmissionId": "camp-42-sub-7" // optional, for idempotency
+}
+```
+#### Response
+```
+201 Created
+{
+"id": "b6b1...c2",
+"status": "queued",
+"postUrl": "https://x.com/creator/status/1234567890",
+"campaignId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+"createdAt": "2026-08-01T14:32:00Z"
+}
+```
+#### Error Responses
+
+| **Status** | **Code**             | **Meaning**                                          |
+|------------|----------------------|------------------------------------------------------|
+| 400        | VALIDATION_ERROR     | postUrl missing, malformed, or not a supported X URL |
+| 409        | DUPLICATE_SUBMISSION | externalSubmissionId already used by this agency     |
+| 429        | RATE_LIMITED         | Submission rate limit exceeded                       |
+
+| **GET** | **/v1/submissions/{id}** |
+|---------|--------------------------|
+
+#### Get a submission’s current status.
+
+**Auth:** API key
+
+#### Response
+```
+200 OK
+{
+"id": "b6b1...c2",
+"status": "completed", // pending | validating | queued | analyzing | completed | failed
+"postUrl": "https://x.com/creator/status/1234567890",
+"campaignId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+"latestAnalysisId": "a91f...0e",
+"createdAt": "2026-08-01T14:32:00Z",
+"updatedAt": "2026-08-01T14:32:41Z"
+}
+```
+#### Error Responses
+
+| **Status** | **Code**  | **Meaning**                                |
+|------------|-----------|--------------------------------------------|
+| 404        | NOT_FOUND | No submission with that id for this agency |
+
+| **GET** | **/v1/submissions/{id}/analysis** |
+|---------|-----------------------------------|
+
+#### Get the latest completed analysis for a submission (FR-005).
+
+This is the primary result endpoint. It returns exactly the fields an agency needs to make a decision — no internal analyzer scores or weights.
+
+**Auth:** API key
+
+#### Response
+```
+200 OK
+{
+"analysisId": "a91f...0e",
+"submissionId": "b6b1...c2",
+"riskScore": 72,
+"riskLevel": "high", // low | moderate | high | critical
+"evidence": [
+{
+"category": "engagement",
+"severity": "high",
+"summary": "38% of likes came from accounts created in the last 30 days."
+},
+{
+"category": "timing",
+"severity": "medium",
+"summary": "Engagement volume spiked within 90 seconds of posting, faster than 98% of organic posts."
+}
+],
+"analysisVersion": "engine-1.4.0+rules-2026.07",
+"analyzedAt": "2026-08-01T14:32:41Z"
+}
+```
+#### Error Responses
+
+| **Status** | **Code**        | **Meaning**                                             |
+|------------|-----------------|---------------------------------------------------------|
+| 404        | NOT_FOUND       | No submission, or no completed analysis yet             |
+| 422        | ANALYSIS_FAILED | Analysis attempted but could not complete — see message |
+
+| **GET** | **/v1/analyses/{id}** |
+|---------|-----------------------|
+
+#### Get a specific analysis by id.
+
+Used to retrieve a historical analysis after re-analysis has produced a newer one — supports the reproducibility model in RLS §8.
+
+**Auth:** API key
+
+#### Response
+
+200 OK — same schema as GET /v1/submissions/{id}/analysis
+
+## 6. Listing & Filtering (Dashboard + API)
+
+| **GET** | **/v1/submissions** |
+|---------|---------------------|
+
+#### List submissions for the caller’s agency, with filters (FR-009).
+
+**Auth:** API key or dashboard JWT
+
+#### Response
+```
+Query params: status, riskLevel, campaignId, dateFrom, dateTo, page, pageSize
+```
+```
+200 OK
+{
+"data": [ { "id": "...", "status": "completed", "riskLevel": "high", ... } ],
+"pagination": { "total": 214, "page": 1, "pageSize": 25 }
+}
+```
+## 7. Campaigns
+
+| **POST** | **/v1/campaigns** |
+|----------|-------------------|
+
+#### Create a campaign reference used to group submissions.
+
+**Auth:** API key or dashboard JWT
+
+#### Request Body
+```
+{
+"name": "Q3 Ambassador Drop",
+"externalCampaignId": "camp-42" // optional
+}
+```
+#### Response
+```
+201 Created
+{ "id": "...", "name": "Q3 Ambassador Drop", "status": "active", "createdAt": "..." }
+```
+| **GET** | **/v1/campaigns** |
+|---------|-------------------|
+
+#### List campaigns for the caller’s agency.
+
+**Auth:** API key or dashboard JWT
+
+#### Response
+```
+200 OK
+{ "data": [ { "id": "...", "name": "...", "status": "active" } ], "pagination": { ... } }
+```
+## 8. Authentication (Dashboard)
+
+| **POST** | **/v1/auth/login** |
+|----------|--------------------|
+
+#### Exchange email + password for a session.
+
+**Auth:** None
+
+#### Request Body
+```
+{
+"email": "reviewer@agency.com",
+"password": "••••••••"
+}
+```
+#### Response
+```
+200 OK
+{
+"accessToken": "eyJ...",
+"refreshToken": "eyJ...",
+"expiresIn": 900,
+"user": { "id": "...", "email": "...", "role": "fraud_reviewer" }
+}
+```
+#### Error Responses
+
+| **Status** | **Code**     | **Meaning**         |
+|------------|--------------|---------------------|
+| 401        | UNAUTHORIZED | Invalid credentials |
+
+| **POST** | **/v1/auth/refresh** |
+|----------|----------------------|
+
+#### Exchange a valid refresh token for a new access token.
+
+**Auth:** Refresh token
+
+#### Response
+```
+200 OK
+{ "accessToken": "eyJ...", "expiresIn": 900 }
+```
+| **POST** | **/v1/auth/logout** |
+|----------|---------------------|
+
+#### Revoke the current refresh token.
+
+**Auth:** Dashboard JWT
+
+#### Response
+
+204 No Content
+
+| **GET** | **/v1/auth/me** |
+|---------|-----------------|
+
+#### Get the current user’s profile and role.
+
+**Auth:** Dashboard JWT
+
+#### Response
+```
+200 OK
+{ "id": "...", "email": "...", "role": "fraud_reviewer", "agencyId": "..." }
+```
+## 9. API Key Management
+
+| **GET** | **/v1/api-keys** |
+|---------|------------------|
+
+#### List API keys for the agency (secret never returned after creation).
+
+**Auth:** Dashboard JWT (agency_admin)
+
+#### Response
+```
+200 OK
+{ "data": [ { "id": "...", "keyPrefix": "ci_live_8f2a", "name": "Prod backend", "createdAt": "...", "lastUsedAt": "...", "revokedAt": null } ] }
+```
+| **POST** | **/v1/api-keys** |
+|----------|------------------|
+
+#### Create a new API key. The full secret is returned once.
+
+**Auth:** Dashboard JWT (agency_admin)
+
+#### Request Body
+
+{ "name": "Prod backend", "scopes": \["submissions:write", "analyses:read"\] }
+
+#### Response
+```
+201 Created
+{ "id": "...", "key": "ci_live_8f2a...FULL_SECRET...", "keyPrefix": "ci_live_8f2a" }
+```
+| **DELETE** | **/v1/api-keys/{id}** |
+|------------|-----------------------|
+
+#### Revoke an API key immediately.
+
+**Auth:** Dashboard JWT (agency_admin)
+
+#### Response
+
+204 No Content
+
+## 10. Audit Log
+
+| **GET** | **/v1/audit-logs** |
+|---------|--------------------|
+
+#### Query audit events for the agency (FR-010).
+
+**Auth:** Dashboard JWT (agency_admin, fraud_reviewer)
+
+#### Response
+```
+Query params: action, actorId, dateFrom, dateTo, page, pageSize
+```
+```
+200 OK
+{ "data": [ { "id": "...", "action": "api_key.created", "actorType": "user", "actorId": "...", "createdAt": "..." } ], "pagination": { ... } }
+```
+## 11. Health
+
+| **GET** | **/v1/health** |
+|---------|----------------|
+
+#### Liveness/readiness probe for load balancers and orchestration.
+
+**Auth:** None
+
+#### Response
+```
+200 OK
+{ "status": "ok", "version": "1.4.0", "dependencies": { "database": "ok", "redis": "ok", "queue": "ok" } }
+```
+## 12. Out of Scope for MVP
+
+- Webhooks / push notifications on analysis completion — MVP is poll-based; agencies call GET /v1/submissions/{id}/analysis until status=completed.
+
+- Bulk submission endpoint (submit many posts in one call).
+
+- PATCH/PUT on submissions or analyses — all data is immutable once created; re-analysis creates a new analysis rather than mutating one.
+
+- Public, unauthenticated endpoints beyond /v1/health.
