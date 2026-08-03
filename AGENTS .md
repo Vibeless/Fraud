@@ -75,6 +75,29 @@ docs/specs/                    # this project's design & planning docs
 .agents/skills/                # repeatable-task playbooks
 ```
 
+## Contributors & Ownership
+
+Two people work on this repo, split by risk rather than by "who codes":
+
+- **Backend (`campaign-integrity-api/`) — technical contributor.** Auth,
+  data scoping, the detection engine, and the schema live here. A wrong
+  answer in this area often looks fine and isn't — a query missing an
+  `agencyId` filter still returns *a* result, just the wrong one. Changes
+  here require a technical read of the diff, not just "it ran."
+- **Frontend (`campaign-integrity-dashboard/`) — either contributor,
+  non-technical by default.** Lower risk to sanity-check without reading
+  code: does the screen match `docs/specs/03_Dashboard_UX_Specification_DUXS.md`,
+  does the flow make sense, does it call the API correctly. Good place to
+  build comfort with the vibe-coding loop.
+- `.github/CODEOWNERS` enforces the backend boundary at the PR level —
+  don't bypass it by merging without review even if the branch protection
+  allows it locally.
+
+If you're generating code for this repo and you're not sure which side a
+change belongs on, or a "frontend" task is asking you to also touch
+`campaign-integrity-api/`, stop and flag it rather than proceeding — that
+crossover is exactly the case the review split exists to catch.
+
 ## Workflow expectations
 
 - Before implementing a feature, check the relevant file(s) in `docs/specs/` above.

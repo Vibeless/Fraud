@@ -1,0 +1,31 @@
+# CODEOWNERS
+#
+# Requires the technical contributor's review on anything that's hard to
+# sanity-check by looking at it (auth, data scoping, the detection engine,
+# schema). Frontend and docs are lower-risk and open for the non-technical
+# contributor to merge with a lighter review, per AGENTS.md "Contributors
+# & Ownership".
+#
+# Replace @technical-username with the actual GitHub username before
+# pushing — CODEOWNERS only works once this is a real GitHub username with
+# repo access, and branch protection has "Require review from Code
+# Owners" turned on (Settings -> Branches -> Branch protection rules).
+
+# Everything backend-related, default to technical review
+/campaign-integrity-api/                          @technical-username
+
+# Especially these — never merge without technical eyes on them
+/campaign-integrity-api/src/common/                @technical-username
+/campaign-integrity-api/src/database/               @technical-username
+/campaign-integrity-api/src/modules/auth/            @technical-username
+/campaign-integrity-api/src/modules/detection/       @technical-username
+/campaign-integrity-api/src/queue/                   @technical-username
+
+# Agent configuration and specs — changes here affect how Antigravity
+# behaves for BOTH of you, so both should weigh in, but default reviewer
+# is the technical contributor since these encode security/architecture
+AGENTS.md                                            @technical-username
+/.agents/                                            @technical-username
+
+# Frontend is open — no default owner, either of you can review
+# /campaign-integrity-dashboard/
