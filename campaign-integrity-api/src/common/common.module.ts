@@ -1,18 +1,18 @@
-import { Global, Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppConfigModule } from '../config/config.module';
-import { AppConfigService } from '../config/app-config.service';
-import { ApiKey, AuditLog } from '../database/entities';
-import { AgencyContext } from './context/agency-context';
-import { ApiKeyGuard } from './guards/api-key.guard';
-import { JwtGuard } from './guards/jwt.guard';
-import { RolesGuard } from './guards/roles.guard';
-import { AuthGuard } from './guards/auth.guard';
-import { ScopesOrRolesGuard } from './guards/scopes-or-roles.guard';
-import { LoggingInterceptor } from './interceptors/logging.interceptor';
-import { AuditInterceptor } from './interceptors/audit.interceptor';
+import { Global, Module } from "@nestjs/common";
+import { APP_INTERCEPTOR } from "@nestjs/core";
+import { JwtModule } from "@nestjs/jwt";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { AppConfigModule } from "../config/config.module";
+import { AppConfigService } from "../config/app-config.service";
+import { ApiKey, AuditLog } from "../database/entities";
+import { AgencyContext } from "./context/agency-context";
+import { ApiKeyGuard } from "./guards/api-key.guard";
+import { JwtGuard } from "./guards/jwt.guard";
+import { RolesGuard } from "./guards/roles.guard";
+import { AuthGuard } from "./guards/auth.guard";
+import { ScopesOrRolesGuard } from "./guards/scopes-or-roles.guard";
+import { LoggingInterceptor } from "./interceptors/logging.interceptor";
+import { AuditInterceptor } from "./interceptors/audit.interceptor";
 
 const CommonTypeOrmFeature = TypeOrmModule.forFeature([ApiKey, AuditLog]);
 

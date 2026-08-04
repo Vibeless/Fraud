@@ -1,18 +1,19 @@
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { JwtService } from "@nestjs/jwt";
+import { Repository } from "typeorm";
+import * as argon2 from "argon2";
+import { randomBytes, createHash } from "crypto";
+import Redis from "ioredis";
+import { REDIS_CLIENT } from "../../common/redis/redis.module";
+import { AppConfigService } from "../../config/app-config.service";
 import {
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
-import * as argon2 from 'argon2';
-import { randomBytes, createHash } from 'crypto';
-import Redis from 'ioredis';
-import { REDIS_CLIENT } from '../../common/redis/redis.module';
-import { AppConfigService } from '../../config/app-config.service';
-import { AuditActorType, AuditLog, User, UserStatus } from '../../database/entities';
-import { ErrorCode } from '../../common/filters/api-error';
+  AuditActorType,
+  AuditLog,
+  User,
+  UserStatus,
+} from "../../database/entities";
+import { ErrorCode } from "../../common/filters/api-error";
 
 export interface TokenPair {
   accessToken: string;
@@ -20,8 +21,8 @@ export interface TokenPair {
   expiresIn: number;
 }
 
-const REFRESH_KEY_PREFIX = 'auth:refresh:';
-const REFRESH_USER_INDEX_PREFIX = 'auth:refresh:user:';
+const REFRESH_KEY_PREFIX = "auth:refresh:";
+const REFRESH_USER_INDEX_PREFIX = "auth:refresh:user:";
 
 /**
  * Implements the token flow in
@@ -40,35 +41,54 @@ const REFRESH_USER_INDEX_PREFIX = 'auth:refresh:user:';
 export class AuthService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(AuditLog) private readonly auditLogs: Repository<AuditLog>,
+    @InjectRepository(AuditLog)
+    private readonly auditLogs: Repository<AuditLog>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly jwt: JwtService,
     private readonly config: AppConfigService,
   ) {}
 
-  async login(email: string, password: string, ip: string | null): Promise<TokenPair & { user: Partial<User> }> {
+  async login(
+    email: string,
+    password: string,
+    ip: string | null,
+  ): Promise<TokenPair & { user: Partial<User> }> {
     const user = await this.users.findOne({
       where: { email },
-      select: ['id', 'agencyId', 'email', 'passwordHash', 'role', 'status'],
+      select: ["id", "agencyId", "email", "passwordHash", "role", "status"],
     });
 
-    const passwordOk = user ? await argon2.verify(user.passwordHash, password) : false;
+    const passwordOk = user
+      ? await argon2.verify(user.passwordHash, password)
+      : false;
 
     if (!user || !passwordOk || user.status !== UserStatus.ACTIVE) {
-      await this.recordAuthEvent(null, user?.agencyId ?? null, 'auth.login_failed', ip, {
-        email,
-      });
+      await this.recordAuthEvent(
+        null,
+        user?.agencyId ?? null,
+        "auth.login_failed",
+        ip,
+        {
+          email,
+        },
+      );
       // Same generic message regardless of which check failed — never
       // reveal whether the email exists (DUXS §4.1).
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Invalid email or password.',
+        message: "Invalid email or password.",
       });
     }
 
     const tokens = await this.issueTokenPair(user);
     await this.users.update(user.id, { lastLoginAt: new Date() });
-    await this.recordAuthEvent(user.id, user.agencyId, 'auth.login_succeeded', ip, null);
+    await this.recordAuthEvent(
+      user.id,
+      user.agencyId,
+      "auth.login_succeeded",
+      ip,
+      null,
+    );
 
     return {
       ...tokens,
@@ -76,13 +96,15 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string): Promise<Pick<TokenPair, 'accessToken' | 'expiresIn'>> {
+  async refresh(
+    refreshToken: string,
+  ): Promise<Pick<TokenPair, "accessToken" | "expiresIn">> {
     const hash = hashToken(refreshToken);
     const raw = await this.redis.get(REFRESH_KEY_PREFIX + hash);
     if (!raw) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Refresh token is invalid or has expired.',
+        message: "Refresh token is invalid or has expired.",
       });
     }
     const { userId } = JSON.parse(raw) as { userId: string };
@@ -90,7 +112,7 @@ export class AuthService {
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Account is no longer active.',
+        message: "Account is no longer active.",
       });
     }
 
@@ -103,12 +125,14 @@ export class AuthService {
   }
 
   async logoutAllSessions(userId: string): Promise<void> {
-    const hashes = await this.redis.smembers(REFRESH_USER_INDEX_PREFIX + userId);
+    const hashes = await this.redis.smembers(
+      REFRESH_USER_INDEX_PREFIX + userId,
+    );
     if (hashes.length) {
       await this.redis.del(...hashes.map((h) => REFRESH_KEY_PREFIX + h));
     }
     await this.redis.del(REFRESH_USER_INDEX_PREFIX + userId);
-    await this.recordAuthEvent(userId, null, 'auth.logout', null, null);
+    await this.recordAuthEvent(userId, null, "auth.logout", null, null);
   }
 
   private async issueTokenPair(user: User): Promise<TokenPair> {
@@ -117,14 +141,14 @@ export class AuthService {
       { expiresIn: this.config.jwtAccessTokenTtlSeconds },
     );
 
-    const refreshToken = randomBytes(32).toString('base64url');
+    const refreshToken = randomBytes(32).toString("base64url");
     const hash = hashToken(refreshToken);
     const ttl = this.config.jwtRefreshTokenTtlSeconds;
 
     await this.redis.set(
       REFRESH_KEY_PREFIX + hash,
       JSON.stringify({ userId: user.id }),
-      'EX',
+      "EX",
       ttl,
     );
     await this.redis.sadd(REFRESH_USER_INDEX_PREFIX + user.id, hash);
@@ -149,12 +173,12 @@ export class AuthService {
       actorType: AuditActorType.USER,
       actorId,
       action,
-      resourceType: 'user',
+      resourceType: "user",
       resourceId: actorId,
       // TypeORM's QueryDeepPartialEntity mapped type doesn't accept a
       // plain Record<string, unknown> for a jsonb column directly — a
       // known TypeORM+strict-mode limitation, not a real type mismatch.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       metadata: metadata as any,
       ipAddress: ip,
     });
@@ -162,5 +186,5 @@ export class AuthService {
 }
 
 function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+  return createHash("sha256").update(token).digest("hex");
 }

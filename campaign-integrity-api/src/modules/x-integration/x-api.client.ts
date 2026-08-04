@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { DetectionSnapshot } from '../detection/rules/rule.interface';
+import { Injectable, Logger } from "@nestjs/common";
+import { DetectionSnapshot } from "../detection/rules/rule.interface";
 
 /**
  * THIS IS A MOCK. Real X API integration is explicitly separate Phase 4
@@ -18,7 +18,7 @@ import { DetectionSnapshot } from '../detection/rules/rule.interface';
  */
 @Injectable()
 export class XApiClient {
-  private readonly logger = new Logger('XApiClient (MOCK)');
+  private readonly logger = new Logger("XApiClient (MOCK)");
 
   async fetchPostSnapshot(postId: string): Promise<DetectionSnapshot> {
     this.logger.warn(
@@ -26,18 +26,20 @@ export class XApiClient {
     );
 
     const now = new Date();
-    const accountCreatedAt = new Date(now.getTime() - 400 * 24 * 60 * 60 * 1000);
+    const accountCreatedAt = new Date(
+      now.getTime() - 400 * 24 * 60 * 60 * 1000,
+    );
 
     return {
       post: {
         id: postId,
         createdAt: now.toISOString(),
-        text: '[mock post text]',
+        text: "[mock post text]",
         publicMetrics: { likeCount: 120, retweetCount: 14, replyCount: 6 },
       },
       account: {
-        xUserId: 'mock-user-id',
-        xUsername: 'mock_creator',
+        xUserId: "mock-user-id",
+        xUsername: "mock_creator",
         createdAt: accountCreatedAt.toISOString(),
         followersCount: 3400,
         followingCount: 512,

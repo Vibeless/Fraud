@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { XDataSnapshot } from '../../../database/entities';
-import { XApiClient } from '../../x-integration/x-api.client';
-import { DetectionSnapshot } from '../rules/rule.interface';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { XDataSnapshot } from "../../../database/entities";
+import { XApiClient } from "../../x-integration/x-api.client";
+import { DetectionSnapshot } from "../rules/rule.interface";
 
 /**
  * Detection Engine Spec, Stage 1 — Data Collection. Calls x-integration,

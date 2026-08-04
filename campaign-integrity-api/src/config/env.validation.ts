@@ -1,4 +1,4 @@
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance } from "class-transformer";
 import {
   IsIn,
   IsInt,
@@ -7,7 +7,7 @@ import {
   Max,
   Min,
   validateSync,
-} from 'class-validator';
+} from "class-validator";
 
 /**
  * Every environment variable the app depends on is declared here and
@@ -17,7 +17,7 @@ import {
  * inject `ConfigService` and go through the typed getters instead.
  */
 class EnvironmentVariables {
-  @IsIn(['development', 'test', 'staging', 'production'])
+  @IsIn(["development", "test", "staging", "production"])
   NODE_ENV!: string;
 
   @IsInt()
@@ -74,8 +74,8 @@ export function validateEnv(config: Record<string, unknown>) {
 
   if (errors.length > 0) {
     const messages = errors
-      .map((e) => Object.values(e.constraints ?? {}).join(', '))
-      .join('\n');
+      .map((e) => Object.values(e.constraints ?? {}).join(", "))
+      .join("\n");
     throw new Error(
       `Invalid environment configuration — refusing to start:\n${messages}`,
     );

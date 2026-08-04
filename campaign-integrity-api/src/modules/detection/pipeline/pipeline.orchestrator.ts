@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import {
   Analysis,
   AnalysisStatus,
@@ -9,14 +9,14 @@ import {
   FindingSeverity,
   Submission,
   SubmissionStatus,
-} from '../../../database/entities';
-import { CollectorService } from './collector.service';
-import { ValidatorService } from './validator.service';
-import { RuleEngineService } from '../rule-engine.service';
-import { RiskAggregatorService } from '../aggregator/risk-aggregator.service';
-import { CreatorHistoryService } from '../../intelligence/creator-history.service';
+} from "../../../database/entities";
+import { CollectorService } from "./collector.service";
+import { ValidatorService } from "./validator.service";
+import { RuleEngineService } from "../rule-engine.service";
+import { RiskAggregatorService } from "../aggregator/risk-aggregator.service";
+import { CreatorHistoryService } from "../../intelligence/creator-history.service";
 
-const ANALYSIS_VERSION = 'engine-0.1.0+rules-2026.08.0';
+const ANALYSIS_VERSION = "engine-0.1.0+rules-2026.08.0";
 
 /**
  * Drives one submission through the full Detection Engine Spec pipeline:
@@ -32,12 +32,14 @@ const ANALYSIS_VERSION = 'engine-0.1.0+rules-2026.08.0';
  */
 @Injectable()
 export class PipelineOrchestrator {
-  private readonly logger = new Logger('PipelineOrchestrator');
+  private readonly logger = new Logger("PipelineOrchestrator");
 
   constructor(
-    @InjectRepository(Submission) private readonly submissions: Repository<Submission>,
+    @InjectRepository(Submission)
+    private readonly submissions: Repository<Submission>,
     @InjectRepository(Analysis) private readonly analyses: Repository<Analysis>,
-    @InjectRepository(FindingEntity) private readonly findings: Repository<FindingEntity>,
+    @InjectRepository(FindingEntity)
+    private readonly findings: Repository<FindingEntity>,
     private readonly collector: CollectorService,
     private readonly validator: ValidatorService,
     private readonly ruleEngine: RuleEngineService,
@@ -46,17 +48,28 @@ export class PipelineOrchestrator {
   ) {}
 
   async run(submissionId: string): Promise<void> {
-    const submission = await this.submissions.findOneOrFail({ where: { id: submissionId } });
+    const submission = await this.submissions.findOneOrFail({
+      where: { id: submissionId },
+    });
     const startedAt = new Date();
 
     try {
-      await this.submissions.update(submission.id, { status: SubmissionStatus.ANALYZING });
+      await this.submissions.update(submission.id, {
+        status: SubmissionStatus.ANALYZING,
+      });
 
-      const snapshot = await this.collector.collect(submission.id, submission.xPostId);
+      const snapshot = await this.collector.collect(
+        submission.id,
+        submission.xPostId,
+      );
 
       const validation = this.validator.validate(snapshot);
       if (!validation.valid) {
-        await this.markFailed(submission.id, startedAt, validation.reason ?? 'Validation failed.');
+        await this.markFailed(
+          submission.id,
+          startedAt,
+          validation.reason ?? "Validation failed.",
+        );
         return;
       }
 
@@ -68,7 +81,8 @@ export class PipelineOrchestrator {
       await this.submissions.update(submission.id, { creatorId: creator.id });
 
       const runFindings = this.ruleEngine.runAll(snapshot);
-      const { riskScore, riskLevel } = this.riskAggregator.aggregate(runFindings);
+      const { riskScore, riskLevel } =
+        this.riskAggregator.aggregate(runFindings);
 
       const analysis = await this.analyses.save(
         this.analyses.create({
@@ -109,7 +123,9 @@ export class PipelineOrchestrator {
         );
       }
 
-      await this.submissions.update(submission.id, { status: SubmissionStatus.COMPLETED });
+      await this.submissions.update(submission.id, {
+        status: SubmissionStatus.COMPLETED,
+      });
     } catch (error) {
       this.logger.error(
         `Pipeline failed for submission ${submission.id}: ${(error as Error).message}`,
@@ -118,13 +134,19 @@ export class PipelineOrchestrator {
       await this.markFailed(
         submission.id,
         startedAt,
-        (error as Error).message ?? 'Unknown pipeline error.',
+        (error as Error).message ?? "Unknown pipeline error.",
       );
     }
   }
 
-  private async markFailed(submissionId: string, startedAt: Date, reason: string): Promise<void> {
-    await this.submissions.update(submissionId, { status: SubmissionStatus.FAILED });
+  private async markFailed(
+    submissionId: string,
+    startedAt: Date,
+    reason: string,
+  ): Promise<void> {
+    await this.submissions.update(submissionId, {
+      status: SubmissionStatus.FAILED,
+    });
     await this.analyses.save(
       this.analyses.create({
         submissionId,

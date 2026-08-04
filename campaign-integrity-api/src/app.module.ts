@@ -1,17 +1,17 @@
-import { Module } from '@nestjs/common';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
-import { AppConfigModule } from './config/config.module';
-import { AppConfigService } from './config/app-config.service';
-import { DatabaseModule } from './database/database.module';
-import { CommonModule } from './common/common.module';
-import { RedisModule } from './common/redis/redis.module';
-import { HealthModule } from './modules/health/health.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { SubmissionsModule } from './modules/submissions/submissions.module';
-import { IntelligenceModule } from './modules/intelligence/intelligence.module';
-import { DetectionModule } from './modules/detection/detection.module';
-import { QueueModule } from './queue/queue.module';
+import { Module } from "@nestjs/common";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { APP_GUARD } from "@nestjs/core";
+import { AppConfigModule } from "./config/config.module";
+import { AppConfigService } from "./config/app-config.service";
+import { DatabaseModule } from "./database/database.module";
+import { CommonModule } from "./common/common.module";
+import { RedisModule } from "./common/redis/redis.module";
+import { HealthModule } from "./modules/health/health.module";
+import { AuthModule } from "./modules/auth/auth.module";
+import { SubmissionsModule } from "./modules/submissions/submissions.module";
+import { IntelligenceModule } from "./modules/intelligence/intelligence.module";
+import { DetectionModule } from "./modules/detection/detection.module";
+import { QueueModule } from "./queue/queue.module";
 
 /**
  * TRIMMED STARTER STATE: this is the minimal vertical slice — health,
@@ -34,7 +34,11 @@ import { QueueModule } from './queue/queue.module';
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => ({
         throttlers: [
-          { name: 'default', ttl: 60_000, limit: config.rateLimitReadPerMinute },
+          {
+            name: "default",
+            ttl: 60_000,
+            limit: config.rateLimitReadPerMinute,
+          },
         ],
       }),
     }),

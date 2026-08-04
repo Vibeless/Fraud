@@ -1,9 +1,9 @@
-import { Global, Module } from '@nestjs/common';
-import Redis from 'ioredis';
-import { AppConfigModule } from '../../config/config.module';
-import { AppConfigService } from '../../config/app-config.service';
+import { Global, Module } from "@nestjs/common";
+import Redis from "ioredis";
+import { AppConfigModule } from "../../config/config.module";
+import { AppConfigService } from "../../config/app-config.service";
 
-export const REDIS_CLIENT = 'REDIS_CLIENT';
+export const REDIS_CLIENT = "REDIS_CLIENT";
 
 /**
  * One shared ioredis connection for the whole process - used for the

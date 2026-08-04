@@ -1,5 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
-import { ErrorCode } from '../../common/filters/api-error';
+import { BadRequestException } from "@nestjs/common";
+import { ErrorCode } from "../../common/filters/api-error";
 
 /**
  * Parses the numeric post id out of an x.com/twitter.com status URL.
@@ -13,15 +13,15 @@ export function parseXPostId(postUrl: string): string {
   } catch {
     throw new BadRequestException({
       code: ErrorCode.VALIDATION_ERROR,
-      message: 'postUrl must be a valid URL.',
+      message: "postUrl must be a valid URL.",
     });
   }
 
-  const host = parsed.hostname.replace(/^www\./, '');
-  if (host !== 'x.com' && host !== 'twitter.com') {
+  const host = parsed.hostname.replace(/^www\./, "");
+  if (host !== "x.com" && host !== "twitter.com") {
     throw new BadRequestException({
       code: ErrorCode.VALIDATION_ERROR,
-      message: 'postUrl must be an x.com or twitter.com post URL.',
+      message: "postUrl must be an x.com or twitter.com post URL.",
     });
   }
 
@@ -30,7 +30,7 @@ export function parseXPostId(postUrl: string): string {
   if (!match) {
     throw new BadRequestException({
       code: ErrorCode.VALIDATION_ERROR,
-      message: 'postUrl must be a supported X post URL (missing /status/{id}).',
+      message: "postUrl must be a supported X post URL (missing /status/{id}).",
     });
   }
 

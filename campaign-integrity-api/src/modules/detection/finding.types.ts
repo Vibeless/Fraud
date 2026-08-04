@@ -11,16 +11,16 @@ export interface Finding {
   ruleId: string; // e.g. "E001" — matches the rule file's id, not a DB row
   ruleVersion: string;
   analyzer:
-    | 'post'
-    | 'account'
-    | 'engagement'
-    | 'audience'
-    | 'behavior'
-    | 'coordination'
-    | 'bot_network'
-    | 'historical';
+    | "post"
+    | "account"
+    | "engagement"
+    | "audience"
+    | "behavior"
+    | "coordination"
+    | "bot_network"
+    | "historical";
   category: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   confidence: number; // 0.00–1.00
   summary: string; // reviewer-facing, plain language, exposed via the API
   details: Record<string, unknown>; // internal only — never exposed

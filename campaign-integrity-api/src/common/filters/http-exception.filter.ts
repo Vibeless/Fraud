@@ -5,9 +5,9 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
-import { ApiErrorBody, ErrorCode } from './api-error';
+} from "@nestjs/common";
+import { Request, Response } from "express";
+import { ApiErrorBody, ErrorCode } from "./api-error";
 
 /**
  * Every thrown exception passes through here and comes out as the
@@ -21,7 +21,7 @@ import { ApiErrorBody, ErrorCode } from './api-error';
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger('ExceptionFilter');
+  private readonly logger = new Logger("ExceptionFilter");
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -30,20 +30,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: string = ErrorCode.INTERNAL_ERROR;
-    let message = 'An unexpected error occurred.';
+    let message = "An unexpected error occurred.";
     let details: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
-      if (typeof body === 'object' && body !== null) {
+      if (typeof body === "object" && body !== null) {
         const b = body as Record<string, unknown>;
         code = (b.code as string) ?? defaultCodeForStatus(status);
         message = (b.message as string) ?? exception.message;
         details = (b.details as Record<string, unknown>) ?? undefined;
         // class-validator's ValidationPipe puts an array of strings in `message`
         if (Array.isArray(b.message)) {
-          message = 'Request validation failed.';
+          message = "Request validation failed.";
           details = { errors: b.message };
         }
       } else {
@@ -58,7 +58,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
     }
 
-    const body: ApiErrorBody = { error: { code, message, ...(details ? { details } : {}) } };
+    const body: ApiErrorBody = {
+      error: { code, message, ...(details ? { details } : {}) },
+    };
     response.status(status).json(body);
   }
 }

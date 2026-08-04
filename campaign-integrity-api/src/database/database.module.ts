@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppConfigModule } from '../config/config.module';
-import { AppConfigService } from '../config/app-config.service';
-import { ENTITIES } from './entities';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { AppConfigModule } from "../config/config.module";
+import { AppConfigService } from "../config/app-config.service";
+import { ENTITIES } from "./entities";
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { ENTITIES } from './entities';
       imports: [AppConfigModule],
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => ({
-        type: 'postgres' as const,
+        type: "postgres" as const,
         url: config.databaseUrl,
         entities: ENTITIES,
         // Migrations are the only sanctioned way to change schema — see
@@ -20,7 +20,8 @@ import { ENTITIES } from './entities';
         // from what migrations actually produce.
         synchronize: false,
         migrationsRun: false,
-        logging: config.nodeEnv === 'development' ? ['error', 'warn'] : ['error'],
+        logging:
+          config.nodeEnv === "development" ? ["error", "warn"] : ["error"],
       }),
     }),
   ],

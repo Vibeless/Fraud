@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Analysis, Creator, Submission } from '../../database/entities';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Analysis, Creator, Submission } from "../../database/entities";
 
 /**
  * docs/specs/05_Backend_Folder_Structure_Specification.md §6 — Campaign
@@ -15,7 +15,8 @@ import { Analysis, Creator, Submission } from '../../database/entities';
 export class CreatorHistoryService {
   constructor(
     @InjectRepository(Creator) private readonly creators: Repository<Creator>,
-    @InjectRepository(Submission) private readonly submissions: Repository<Submission>,
+    @InjectRepository(Submission)
+    private readonly submissions: Repository<Submission>,
     @InjectRepository(Analysis) private readonly analyses: Repository<Analysis>,
   ) {}
 
@@ -26,13 +27,15 @@ export class CreatorHistoryService {
     profileSnapshot: Record<string, unknown>;
   }): Promise<Creator> {
     const now = new Date();
-    const existing = await this.creators.findOne({ where: { xUserId: params.xUserId } });
+    const existing = await this.creators.findOne({
+      where: { xUserId: params.xUserId },
+    });
 
     if (existing) {
       await this.creators.update(existing.id, {
         xUsername: params.xUsername,
         // Same QueryDeepPartialEntity + jsonb limitation as auth.service.ts.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         cachedProfile: params.profileSnapshot as any,
         lastSeenAt: now,
       });
@@ -58,13 +61,13 @@ export class CreatorHistoryService {
   async priorAnalyses(creatorId: string, agencyId: string, limit = 10) {
     const submissionIds = await this.submissions.find({
       where: { creatorId, agencyId },
-      select: ['id'],
+      select: ["id"],
     });
     if (submissionIds.length === 0) return [];
 
     return this.analyses.find({
       where: submissionIds.map((s) => ({ submissionId: s.id })),
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
       take: limit,
     });
   }

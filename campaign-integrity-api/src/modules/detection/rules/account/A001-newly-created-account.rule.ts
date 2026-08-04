@@ -1,5 +1,5 @@
-import { DetectionRule, DetectionSnapshot } from '../rule.interface';
-import { Finding } from '../../finding.types';
+import { DetectionRule, DetectionSnapshot } from "../rule.interface";
+import { Finding } from "../../finding.types";
 
 /**
  * A001 — Newly Created Account.
@@ -11,14 +11,14 @@ import { Finding } from '../../finding.types';
  * this file does not.
  */
 const ACCOUNT_AGE_THRESHOLD_DAYS = 30;
-const RULE_ID = 'A001';
-const RULE_VERSION = '2026.08.0';
+const RULE_ID = "A001";
+const RULE_VERSION = "2026.08.0";
 
 export class NewlyCreatedAccountRule implements DetectionRule {
   readonly ruleId = RULE_ID;
   readonly ruleVersion = RULE_VERSION;
-  readonly analyzer = 'account' as const;
-  readonly category = 'account_age';
+  readonly analyzer = "account" as const;
+  readonly category = "account_age";
 
   evaluate(snapshot: DetectionSnapshot): Finding | null {
     const accountAgeDays = daysBetween(
@@ -39,9 +39,9 @@ export class NewlyCreatedAccountRule implements DetectionRule {
       ruleVersion: RULE_VERSION,
       analyzer: this.analyzer,
       category: this.category,
-      severity: accountAgeDays < 7 ? 'high' : 'medium',
+      severity: accountAgeDays < 7 ? "high" : "medium",
       confidence: 0.7,
-      summary: `Account was created ${accountAgeDays} day${accountAgeDays === 1 ? '' : 's'} before this post, under the ${ACCOUNT_AGE_THRESHOLD_DAYS}-day threshold.`,
+      summary: `Account was created ${accountAgeDays} day${accountAgeDays === 1 ? "" : "s"} before this post, under the ${ACCOUNT_AGE_THRESHOLD_DAYS}-day threshold.`,
       details: { accountAgeDays, threshold: ACCOUNT_AGE_THRESHOLD_DAYS },
       isInternalOnly: false,
     };

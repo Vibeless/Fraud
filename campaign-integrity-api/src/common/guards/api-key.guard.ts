@@ -4,17 +4,17 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import * as argon2 from 'argon2';
-import { Request } from 'express';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ApiKey } from '../../database/entities';
-import { AgencyContext } from '../context/agency-context';
-import { SCOPES_KEY } from '../decorators/require-scopes.decorator';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { ErrorCode } from '../filters/api-error';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import * as argon2 from "argon2";
+import { Request } from "express";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ApiKey } from "../../database/entities";
+import { AgencyContext } from "../context/agency-context";
+import { SCOPES_KEY } from "../decorators/require-scopes.decorator";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
+import { ErrorCode } from "../filters/api-error";
 
 /**
  * Validates `Authorization: Bearer <api_key>` per
@@ -44,23 +44,23 @@ export class ApiKeyGuard implements CanActivate {
     const header = request.headers.authorization;
     const secret = extractBearerToken(header);
 
-    if (!secret || !secret.startsWith('ci_')) {
+    if (!secret || !secret.startsWith("ci_")) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Missing or malformed API key.',
+        message: "Missing or malformed API key.",
       });
     }
 
     const keyPrefix = secret.slice(0, 16);
     const candidate = await this.apiKeys.findOne({
       where: { keyPrefix },
-      select: ['id', 'agencyId', 'keyHash', 'scopes', 'revokedAt'],
+      select: ["id", "agencyId", "keyHash", "scopes", "revokedAt"],
     });
 
     if (!candidate || candidate.revokedAt) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Invalid or revoked API key.',
+        message: "Invalid or revoked API key.",
       });
     }
 
@@ -68,20 +68,20 @@ export class ApiKeyGuard implements CanActivate {
     if (!isValid) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Invalid or revoked API key.',
+        message: "Invalid or revoked API key.",
       });
     }
 
-    const requiredScopes = this.reflector.getAllAndOverride<string[]>(SCOPES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredScopes = this.reflector.getAllAndOverride<string[]>(
+      SCOPES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (requiredScopes?.length) {
       const hasScope = requiredScopes.some((s) => candidate.scopes.includes(s));
       if (!hasScope) {
         throw new ForbiddenException({
           code: ErrorCode.FORBIDDEN,
-          message: `This API key is missing a required scope: one of [${requiredScopes.join(', ')}].`,
+          message: `This API key is missing a required scope: one of [${requiredScopes.join(", ")}].`,
         });
       }
     }
@@ -89,9 +89,10 @@ export class ApiKeyGuard implements CanActivate {
     this.agencyContext.set({
       agencyId: candidate.agencyId,
       scopes: candidate.scopes,
-      authType: 'api_key',
+      authType: "api_key",
     });
-    (request as Request & { agencyContext: AgencyContext }).agencyContext = this.agencyContext;
+    (request as Request & { agencyContext: AgencyContext }).agencyContext =
+      this.agencyContext;
 
     // Fire-and-forget last-used update; never block or fail the request on this.
     void this.apiKeys.update(candidate.id, { lastUsedAt: new Date() });
@@ -102,7 +103,7 @@ export class ApiKeyGuard implements CanActivate {
 
 function extractBearerToken(header: string | undefined): string | null {
   if (!header) return null;
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) return null;
+  const [scheme, token] = header.split(" ");
+  if (scheme !== "Bearer" || !token) return null;
   return token;
 }

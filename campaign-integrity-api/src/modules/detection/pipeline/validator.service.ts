@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { DetectionSnapshot } from '../rules/rule.interface';
+import { Injectable } from "@nestjs/common";
+import { DetectionSnapshot } from "../rules/rule.interface";
 
 export interface ValidationResult {
   valid: boolean;
@@ -20,10 +20,10 @@ export interface ValidationResult {
 export class ValidatorService {
   validate(snapshot: DetectionSnapshot): ValidationResult {
     if (!snapshot.post?.id) {
-      return { valid: false, reason: 'Post data is missing or malformed.' };
+      return { valid: false, reason: "Post data is missing or malformed." };
     }
     if (!snapshot.account?.xUserId) {
-      return { valid: false, reason: 'Account data is missing or malformed.' };
+      return { valid: false, reason: "Account data is missing or malformed." };
     }
     return { valid: true };
   }

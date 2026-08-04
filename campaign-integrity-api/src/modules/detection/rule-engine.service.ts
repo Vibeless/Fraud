@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { DetectionRule, DetectionSnapshot } from './rules/rule.interface';
-import { Finding } from './finding.types';
-import { NewlyCreatedAccountRule } from './rules/account/A001-newly-created-account.rule';
+import { Injectable } from "@nestjs/common";
+import { DetectionRule, DetectionSnapshot } from "./rules/rule.interface";
+import { Finding } from "./finding.types";
+import { NewlyCreatedAccountRule } from "./rules/account/A001-newly-created-account.rule";
 
 /**
  * The rule registry. Adding a rule means adding one line here — see
@@ -26,7 +26,10 @@ export class RuleEngineService {
   private readonly rules = REGISTERED_RULES;
 
   /** Runs every registered rule for the given analyzer against a snapshot. */
-  runAnalyzer(analyzer: Finding['analyzer'], snapshot: DetectionSnapshot): Finding[] {
+  runAnalyzer(
+    analyzer: Finding["analyzer"],
+    snapshot: DetectionSnapshot,
+  ): Finding[] {
     return this.rules
       .filter((rule) => rule.analyzer === analyzer)
       .map((rule) => rule.evaluate(snapshot))

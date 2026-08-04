@@ -4,17 +4,17 @@ import {
   Injectable,
   NestInterceptor,
   SetMetadata,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Request } from 'express';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
-import { Repository } from 'typeorm';
-import { AuditActorType, AuditLog } from '../../database/entities';
-import { AgencyContext } from '../context/agency-context';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Request } from "express";
+import { Observable } from "rxjs";
+import { tap } from "rxjs/operators";
+import { Repository } from "typeorm";
+import { AuditActorType, AuditLog } from "../../database/entities";
+import { AgencyContext } from "../context/agency-context";
 
-export const AUDIT_ACTION_KEY = 'auditAction';
+export const AUDIT_ACTION_KEY = "auditAction";
 
 /**
  * Marks a mutating route with the audit_logs `action` string to record on
@@ -23,7 +23,8 @@ export const AUDIT_ACTION_KEY = 'auditAction';
  * every mutating route should carry this; a mutation with no audit trail
  * is the exception that needs justifying, not the default.
  */
-export const AuditAction = (action: string) => SetMetadata(AUDIT_ACTION_KEY, action);
+export const AuditAction = (action: string) =>
+  SetMetadata(AUDIT_ACTION_KEY, action);
 
 /**
  * Deliberately does NOT constructor-inject the request-scoped
@@ -37,7 +38,8 @@ export const AuditAction = (action: string) => SetMetadata(AUDIT_ACTION_KEY, act
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
   constructor(
-    @InjectRepository(AuditLog) private readonly auditLogs: Repository<AuditLog>,
+    @InjectRepository(AuditLog)
+    private readonly auditLogs: Repository<AuditLog>,
     private readonly reflector: Reflector,
   ) {}
 
@@ -49,18 +51,21 @@ export class AuditInterceptor implements NestInterceptor {
     if (!action) return next.handle();
 
     const request = context.switchToHttp().getRequest<Request>();
-    const agencyContext = (request as Request & { agencyContext?: AgencyContext })
-      .agencyContext;
+    const agencyContext = (
+      request as Request & { agencyContext?: AgencyContext }
+    ).agencyContext;
 
     return next.handle().pipe(
       tap((result) => {
         void this.auditLogs.insert({
           agencyId: safeAgencyId(agencyContext),
           actorType:
-            agencyContext?.authType === 'api_key' ? AuditActorType.API_KEY : AuditActorType.USER,
+            agencyContext?.authType === "api_key"
+              ? AuditActorType.API_KEY
+              : AuditActorType.USER,
           actorId: agencyContext?.userId ?? null,
           action,
-          resourceType: action.split('.')[0] ?? null,
+          resourceType: action.split(".")[0] ?? null,
           resourceId: extractResourceId(result),
           metadata: null,
           ipAddress: request.ip ?? null,
@@ -80,9 +85,9 @@ function safeAgencyId(ctx: AgencyContext | undefined): string | null {
 }
 
 function extractResourceId(result: unknown): string | null {
-  if (result && typeof result === 'object' && 'id' in result) {
+  if (result && typeof result === "object" && "id" in result) {
     const id = (result as { id: unknown }).id;
-    return typeof id === 'string' ? id : null;
+    return typeof id === "string" ? id : null;
   }
   return null;
 }

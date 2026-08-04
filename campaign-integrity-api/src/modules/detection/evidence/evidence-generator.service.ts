@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { Finding } from '../finding.types';
+import { Injectable } from "@nestjs/common";
+import { Finding } from "../finding.types";
 
 export interface Evidence {
   category: string;
-  severity: Finding['severity'];
+  severity: Finding["severity"];
   summary: string;
 }
 
@@ -31,6 +31,6 @@ export class EvidenceGeneratorService {
   }
 }
 
-function severityRank(severity: Finding['severity']): number {
+function severityRank(severity: Finding["severity"]): number {
   return { low: 0, medium: 1, high: 2, critical: 3 }[severity];
 }

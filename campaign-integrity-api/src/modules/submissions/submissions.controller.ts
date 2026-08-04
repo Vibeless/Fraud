@@ -1,16 +1,25 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
-import { SubmissionsService } from './submissions.service';
-import { CreateSubmissionDto } from './dto/create-submission.dto';
-import { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto';
-import { ApiKeyGuard } from '../../common/guards/api-key.guard';
-import { AuthGuard } from '../../common/guards/auth.guard';
-import { ScopesOrRolesGuard } from '../../common/guards/scopes-or-roles.guard';
-import { RequireScopes } from '../../common/decorators/require-scopes.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentAgency } from '../../common/decorators/current-agency.decorator';
-import { AgencyContext } from '../../common/context/agency-context';
-import { AuditAction } from '../../common/interceptors/audit.interceptor';
-import { UserRole } from '../../database/entities';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { SubmissionsService } from "./submissions.service";
+import { CreateSubmissionDto } from "./dto/create-submission.dto";
+import { ListSubmissionsQueryDto } from "./dto/list-submissions-query.dto";
+import { ApiKeyGuard } from "../../common/guards/api-key.guard";
+import { AuthGuard } from "../../common/guards/auth.guard";
+import { ScopesOrRolesGuard } from "../../common/guards/scopes-or-roles.guard";
+import { RequireScopes } from "../../common/decorators/require-scopes.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { CurrentAgency } from "../../common/decorators/current-agency.decorator";
+import { AgencyContext } from "../../common/context/agency-context";
+import { AuditAction } from "../../common/interceptors/audit.interceptor";
+import { UserRole } from "../../database/entities";
 
 const ALL_DASHBOARD_ROLES = [
   UserRole.PLATFORM_ADMIN,
@@ -21,38 +30,47 @@ const ALL_DASHBOARD_ROLES = [
 ];
 
 /** docs/specs/02_API_Specification_OAS.md §5-6. */
-@Controller('v1/submissions')
+@Controller("v1/submissions")
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   @Post()
   @UseGuards(ApiKeyGuard)
-  @RequireScopes('submissions:write')
-  @AuditAction('submission.created')
-  create(@Body() dto: CreateSubmissionDto, @CurrentAgency() ctx: AgencyContext) {
+  @RequireScopes("submissions:write")
+  @AuditAction("submission.created")
+  create(
+    @Body() dto: CreateSubmissionDto,
+    @CurrentAgency() ctx: AgencyContext,
+  ) {
     return this.submissionsService.create(ctx.agencyId, null, dto);
   }
 
   @Get()
   @UseGuards(AuthGuard, ScopesOrRolesGuard)
-  @RequireScopes('submissions:read')
+  @RequireScopes("submissions:read")
   @Roles(...ALL_DASHBOARD_ROLES)
-  list(@Query() query: ListSubmissionsQueryDto, @CurrentAgency() ctx: AgencyContext) {
+  list(
+    @Query() query: ListSubmissionsQueryDto,
+    @CurrentAgency() ctx: AgencyContext,
+  ) {
     return this.submissionsService.list(ctx.agencyId, query);
   }
 
-  @Get(':id')
+  @Get(":id")
   @UseGuards(ApiKeyGuard)
-  @RequireScopes('submissions:read')
-  findById(@Param('id', ParseUUIDPipe) id: string, @CurrentAgency() ctx: AgencyContext) {
+  @RequireScopes("submissions:read")
+  findById(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentAgency() ctx: AgencyContext,
+  ) {
     return this.submissionsService.findById(ctx.agencyId, id);
   }
 
-  @Get(':id/analysis')
+  @Get(":id/analysis")
   @UseGuards(ApiKeyGuard)
-  @RequireScopes('analyses:read')
+  @RequireScopes("analyses:read")
   getLatestAnalysis(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @CurrentAgency() ctx: AgencyContext,
   ) {
     return this.submissionsService.getLatestAnalysis(ctx.agencyId, id);

@@ -4,11 +4,11 @@ import {
   Injectable,
   Logger,
   NestInterceptor,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
-import { randomUUID } from 'crypto';
+} from "@nestjs/common";
+import { Request, Response } from "express";
+import { Observable } from "rxjs";
+import { tap } from "rxjs/operators";
+import { randomUUID } from "crypto";
 
 /**
  * Generates (or propagates) a correlationId per request and logs
@@ -22,25 +22,32 @@ import { randomUUID } from 'crypto';
  */
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  private readonly logger = new Logger('HTTP');
+  private readonly logger = new Logger("HTTP");
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
 
     const correlationId =
-      (request.headers['x-correlation-id'] as string) || randomUUID();
-    (request as Request & { correlationId: string }).correlationId = correlationId;
-    response.setHeader('x-correlation-id', correlationId);
+      (request.headers["x-correlation-id"] as string) || randomUUID();
+    (request as Request & { correlationId: string }).correlationId =
+      correlationId;
+    response.setHeader("x-correlation-id", correlationId);
 
     const start = Date.now();
     const authHeader = request.headers.authorization;
-    const callerType = !authHeader ? 'none' : authHeader.includes('ci_') ? 'api_key' : 'jwt';
+    const callerType = !authHeader
+      ? "none"
+      : authHeader.includes("ci_")
+        ? "api_key"
+        : "jwt";
 
     return next.handle().pipe(
       tap({
-        next: () => this.log(request, response, start, correlationId, callerType),
-        error: () => this.log(request, response, start, correlationId, callerType),
+        next: () =>
+          this.log(request, response, start, correlationId, callerType),
+        error: () =>
+          this.log(request, response, start, correlationId, callerType),
       }),
     );
   }
@@ -52,8 +59,9 @@ export class LoggingInterceptor implements NestInterceptor {
     correlationId: string,
     callerType: string,
   ) {
-    const agencyId = (request as Request & { agencyContext?: { agencyId?: string } })
-      .agencyContext?.agencyId;
+    const agencyId = (
+      request as Request & { agencyContext?: { agencyId?: string } }
+    ).agencyContext?.agencyId;
     this.logger.log(
       JSON.stringify({
         correlationId,

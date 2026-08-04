@@ -3,9 +3,9 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { FindOptionsWhere, Repository } from "typeorm";
 import {
   Analysis,
   AnalysisStatus,
@@ -13,27 +13,33 @@ import {
   RiskLevel,
   Submission,
   SubmissionStatus,
-} from '../../database/entities';
-import { AnalysisProducer } from '../../queue/producers/analysis.producer';
-import { EvidenceGeneratorService } from '../detection/evidence/evidence-generator.service';
-import { Finding } from '../detection/finding.types';
-import { CreateSubmissionDto } from './dto/create-submission.dto';
-import { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto';
-import { parseXPostId } from './x-post-url.util';
-import { ErrorCode } from '../../common/filters/api-error';
+} from "../../database/entities";
+import { AnalysisProducer } from "../../queue/producers/analysis.producer";
+import { EvidenceGeneratorService } from "../detection/evidence/evidence-generator.service";
+import { Finding } from "../detection/finding.types";
+import { CreateSubmissionDto } from "./dto/create-submission.dto";
+import { ListSubmissionsQueryDto } from "./dto/list-submissions-query.dto";
+import { parseXPostId } from "./x-post-url.util";
+import { ErrorCode } from "../../common/filters/api-error";
 
 @Injectable()
 export class SubmissionsService {
   constructor(
-    @InjectRepository(Submission) private readonly submissions: Repository<Submission>,
+    @InjectRepository(Submission)
+    private readonly submissions: Repository<Submission>,
     @InjectRepository(Analysis) private readonly analyses: Repository<Analysis>,
-    @InjectRepository(FindingEntity) private readonly findings: Repository<FindingEntity>,
+    @InjectRepository(FindingEntity)
+    private readonly findings: Repository<FindingEntity>,
     private readonly analysisProducer: AnalysisProducer,
     private readonly evidenceGenerator: EvidenceGeneratorService,
   ) {}
 
   /** POST /v1/submissions — OAS §5. Returns 201 immediately; analysis runs async. */
-  async create(agencyId: string, submittedBy: string | null, dto: CreateSubmissionDto) {
+  async create(
+    agencyId: string,
+    submittedBy: string | null,
+    dto: CreateSubmissionDto,
+  ) {
     const xPostId = parseXPostId(dto.postUrl);
 
     if (dto.externalSubmissionId) {
@@ -43,7 +49,7 @@ export class SubmissionsService {
       if (existing) {
         throw new ConflictException({
           code: ErrorCode.DUPLICATE_SUBMISSION,
-          message: 'externalSubmissionId already used by this agency.',
+          message: "externalSubmissionId already used by this agency.",
         });
       }
     }
@@ -70,10 +76,13 @@ export class SubmissionsService {
     const submission = await this.findScoped({ id, agencyId });
     const latest = await this.analyses.findOne({
       where: { submissionId: submission.id },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
-    return { ...this.toPublicSubmission(submission), latestAnalysisId: latest?.id ?? null };
+    return {
+      ...this.toPublicSubmission(submission),
+      latestAnalysisId: latest?.id ?? null,
+    };
   }
 
   /** GET /v1/submissions — OAS §6. */
@@ -84,7 +93,7 @@ export class SubmissionsService {
 
     const [data, total] = await this.submissions.findAndCount({
       where,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
     });
@@ -100,7 +109,7 @@ export class SubmissionsService {
           submission: s,
           analysis: await this.analyses.findOne({
             where: { submissionId: s.id },
-            order: { createdAt: 'DESC' },
+            order: { createdAt: "DESC" },
           }),
         })),
       );
@@ -120,13 +129,13 @@ export class SubmissionsService {
     const submission = await this.findScoped({ id: submissionId, agencyId });
     const latest = await this.analyses.findOne({
       where: { submissionId: submission.id },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
 
     if (!latest) {
       throw new NotFoundException({
         code: ErrorCode.NOT_FOUND,
-        message: 'No completed analysis yet for this submission.',
+        message: "No completed analysis yet for this submission.",
       });
     }
 
@@ -139,7 +148,7 @@ export class SubmissionsService {
     if (!analysis) {
       throw new NotFoundException({
         code: ErrorCode.NOT_FOUND,
-        message: 'No analysis with that id.',
+        message: "No analysis with that id.",
       });
     }
     // agency-scope via the parent submission — an analysis has no agencyId of its own
@@ -148,12 +157,14 @@ export class SubmissionsService {
     return this.toPublicAnalysis(analysis);
   }
 
-  private async findScoped(where: FindOptionsWhere<Submission>): Promise<Submission> {
+  private async findScoped(
+    where: FindOptionsWhere<Submission>,
+  ): Promise<Submission> {
     const submission = await this.submissions.findOne({ where });
     if (!submission) {
       throw new NotFoundException({
         code: ErrorCode.NOT_FOUND,
-        message: 'No submission with that id for this agency.',
+        message: "No submission with that id for this agency.",
       });
     }
     return submission;
@@ -174,11 +185,13 @@ export class SubmissionsService {
     if (analysis.status === AnalysisStatus.FAILED) {
       throw new UnprocessableEntityException({
         code: ErrorCode.ANALYSIS_FAILED,
-        message: 'Analysis attempted but could not complete.',
+        message: "Analysis attempted but could not complete.",
       });
     }
 
-    const findingRows = await this.findings.find({ where: { analysisId: analysis.id } });
+    const findingRows = await this.findings.find({
+      where: { analysisId: analysis.id },
+    });
     const findings: Finding[] = findingRows.map((f) => ({
       findingId: f.findingId,
       ruleId: f.ruleId,

@@ -1,6 +1,6 @@
-import 'reflect-metadata';
-import { DataSource } from 'typeorm';
-import { ENTITIES } from './entities';
+import "reflect-metadata";
+import { DataSource } from "typeorm";
+import { ENTITIES } from "./entities";
 
 /**
  * Used by the TypeORM CLI (`npm run migration:generate` / `migration:run`)
@@ -10,10 +10,10 @@ import { ENTITIES } from './entities';
  * "never read process.env directly" (see .agents/rules/20-security.md).
  */
 export const AppDataSource = new DataSource({
-  type: 'postgres',
+  type: "postgres",
   url: process.env.DATABASE_URL,
   entities: ENTITIES,
-  migrations: [__dirname + '/migrations/*.{ts,js}'],
+  migrations: [__dirname + "/migrations/*.{ts,js}"],
   synchronize: false,
-  logging: process.env.NODE_ENV === 'development',
+  logging: process.env.NODE_ENV === "development",
 });

@@ -1,4 +1,4 @@
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable, Scope } from "@nestjs/common";
 
 /**
  * Request-scoped holder for the caller's resolved agencyId (and, for
@@ -17,7 +17,7 @@ export class AgencyContext {
   private _agencyId: string | null = null;
   private _userId: string | null = null;
   private _role: string | null = null;
-  private _authType: 'api_key' | 'jwt' | null = null;
+  private _authType: "api_key" | "jwt" | null = null;
   private _scopes: string[] = [];
 
   set(params: {
@@ -25,7 +25,7 @@ export class AgencyContext {
     userId?: string | null;
     role?: string | null;
     scopes?: string[];
-    authType: 'api_key' | 'jwt';
+    authType: "api_key" | "jwt";
   }) {
     this._agencyId = params.agencyId;
     this._userId = params.userId ?? null;
@@ -43,8 +43,8 @@ export class AgencyContext {
   get agencyId(): string {
     if (!this._agencyId) {
       throw new Error(
-        'AgencyContext.agencyId accessed with no agency resolved on the request. ' +
-          'This is a bug: every guarded route must resolve an agencyId before reaching a service.',
+        "AgencyContext.agencyId accessed with no agency resolved on the request. " +
+          "This is a bug: every guarded route must resolve an agencyId before reaching a service.",
       );
     }
     return this._agencyId;
@@ -63,7 +63,7 @@ export class AgencyContext {
     return this._role;
   }
 
-  get authType(): 'api_key' | 'jwt' | null {
+  get authType(): "api_key" | "jwt" | null {
     return this._authType;
   }
 

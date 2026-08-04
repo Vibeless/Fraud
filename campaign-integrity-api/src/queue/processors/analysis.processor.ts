@@ -1,9 +1,9 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
-import { ANALYSIS_QUEUE } from '../queue.constants';
-import { AnalysisJobData } from '../producers/analysis.producer';
-import { PipelineOrchestrator } from '../../modules/detection/pipeline/pipeline.orchestrator';
+import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
+import { Job } from "bullmq";
+import { ANALYSIS_QUEUE } from "../queue.constants";
+import { AnalysisJobData } from "../producers/analysis.producer";
+import { PipelineOrchestrator } from "../../modules/detection/pipeline/pipeline.orchestrator";
 
 /**
  * Consumes "analyze-submission" jobs and invokes the pipeline
@@ -14,14 +14,16 @@ import { PipelineOrchestrator } from '../../modules/detection/pipeline/pipeline.
  */
 @Processor(ANALYSIS_QUEUE)
 export class AnalysisProcessor extends WorkerHost {
-  private readonly logger = new Logger('AnalysisProcessor');
+  private readonly logger = new Logger("AnalysisProcessor");
 
   constructor(private readonly orchestrator: PipelineOrchestrator) {
     super();
   }
 
   async process(job: Job<AnalysisJobData>): Promise<void> {
-    this.logger.log(`Processing analysis job ${job.id} for submission ${job.data.submissionId}`);
+    this.logger.log(
+      `Processing analysis job ${job.id} for submission ${job.data.submissionId}`,
+    );
     await this.orchestrator.run(job.data.submissionId);
   }
 }

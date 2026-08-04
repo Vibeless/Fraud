@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { Finding } from '../finding.types';
-import { RiskLevel } from '../../../database/entities';
+import { Injectable } from "@nestjs/common";
+import { Finding } from "../finding.types";
+import { RiskLevel } from "../../../database/entities";
 
-const SEVERITY_WEIGHT: Record<Finding['severity'], number> = {
+const SEVERITY_WEIGHT: Record<Finding["severity"], number> = {
   low: 10,
   medium: 25,
   high: 45,
@@ -34,12 +34,15 @@ export class RiskAggregatorService {
     // diminishing-returns contribution so ten "low" findings don't
     // silently outrank one "critical" finding.
     const sorted = [...findings].sort(
-      (a, b) => SEVERITY_WEIGHT[b.severity] * b.confidence - SEVERITY_WEIGHT[a.severity] * a.confidence,
+      (a, b) =>
+        SEVERITY_WEIGHT[b.severity] * b.confidence -
+        SEVERITY_WEIGHT[a.severity] * a.confidence,
     );
 
     let score = 0;
     sorted.forEach((finding, index) => {
-      const contribution = SEVERITY_WEIGHT[finding.severity] * finding.confidence;
+      const contribution =
+        SEVERITY_WEIGHT[finding.severity] * finding.confidence;
       const decay = 1 / (index + 1);
       score += contribution * decay;
     });

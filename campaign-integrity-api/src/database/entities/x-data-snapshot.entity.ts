@@ -6,8 +6,8 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-} from 'typeorm';
-import { Submission } from './submission.entity';
+} from "typeorm";
+import { Submission } from "./submission.entity";
 
 /**
  * DDS §4 — x_data_snapshots: raw public data retrieved from X for a
@@ -15,28 +15,28 @@ import { Submission } from './submission.entity';
  * Persisted separately from the Redis cache so an analysis is auditable
  * and reproducible after the fact, independent of cache TTLs.
  */
-@Entity('x_data_snapshots')
+@Entity("x_data_snapshots")
 export class XDataSnapshot {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: "uuid" })
   submissionId!: string;
 
-  @ManyToOne(() => Submission, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'submissionId' })
+  @ManyToOne(() => Submission, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "submissionId" })
   submission?: Submission;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   postData!: Record<string, unknown>;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   creatorData!: Record<string, unknown>;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   engagementSample!: Record<string, unknown> | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: "timestamptz" })
   collectedAt!: Date;
 }

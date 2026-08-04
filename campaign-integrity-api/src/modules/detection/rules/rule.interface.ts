@@ -1,4 +1,4 @@
-import { Finding } from '../finding.types';
+import { Finding } from "../finding.types";
 
 /**
  * The shape of the raw data a rule evaluates. Deliberately a plain
@@ -14,7 +14,11 @@ export interface DetectionSnapshot {
     id: string;
     createdAt: string;
     text: string;
-    publicMetrics: { likeCount: number; retweetCount: number; replyCount: number };
+    publicMetrics: {
+      likeCount: number;
+      retweetCount: number;
+      replyCount: number;
+    };
   };
   account: {
     xUserId: string;
@@ -38,7 +42,7 @@ export interface DetectionSnapshot {
 export interface DetectionRule {
   readonly ruleId: string; // e.g. "E001"
   readonly ruleVersion: string;
-  readonly analyzer: Finding['analyzer'];
+  readonly analyzer: Finding["analyzer"];
   readonly category: string;
 
   /** Returns a Finding if the rule fires, or null if it doesn't. */

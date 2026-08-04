@@ -1,8 +1,14 @@
-import { IsOptional, IsString, IsUrl, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsUUID,
+  MaxLength,
+} from "class-validator";
 
 /** Request body for POST /v1/submissions — OAS §5. */
 export class CreateSubmissionDto {
-  @IsUrl({}, { message: 'postUrl must be a valid X post URL' })
+  @IsUrl({}, { message: "postUrl must be a valid X post URL" })
   postUrl!: string;
 
   @IsOptional()

@@ -1,9 +1,14 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { UserRole } from '../../database/entities';
-import { AgencyContext } from '../context/agency-context';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { ErrorCode } from '../filters/api-error';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { UserRole } from "../../database/entities";
+import { AgencyContext } from "../context/agency-context";
+import { ROLES_KEY } from "../decorators/roles.decorator";
+import { ErrorCode } from "../filters/api-error";
 
 /**
  * Route-level RBAC check against the permission matrix in
@@ -25,16 +30,17 @@ export class RolesGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     // No @Roles() declared is a bug, not "allow everyone" — fail closed.
     if (!requiredRoles || requiredRoles.length === 0) {
       throw new ForbiddenException({
         code: ErrorCode.FORBIDDEN,
-        message: 'This route has no roles configured. Add @Roles(...) explicitly.',
+        message:
+          "This route has no roles configured. Add @Roles(...) explicitly.",
       });
     }
 
@@ -42,7 +48,7 @@ export class RolesGuard implements CanActivate {
     if (!role || !requiredRoles.includes(role)) {
       throw new ForbiddenException({
         code: ErrorCode.FORBIDDEN,
-        message: 'Your role does not have access to this action.',
+        message: "Your role does not have access to this action.",
       });
     }
 

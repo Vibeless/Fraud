@@ -1,10 +1,15 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { UserRole } from '../../database/entities';
-import { AgencyContext } from '../context/agency-context';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { SCOPES_KEY } from '../decorators/require-scopes.decorator';
-import { ErrorCode } from '../filters/api-error';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { UserRole } from "../../database/entities";
+import { AgencyContext } from "../context/agency-context";
+import { ROLES_KEY } from "../decorators/roles.decorator";
+import { SCOPES_KEY } from "../decorators/require-scopes.decorator";
+import { ErrorCode } from "../filters/api-error";
 
 /**
  * For routes reachable by EITHER an API key or a dashboard JWT (e.g.
@@ -31,22 +36,24 @@ export class ScopesOrRolesGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredScopes = this.reflector.getAllAndOverride<string[]>(SCOPES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredScopes = this.reflector.getAllAndOverride<string[]>(
+      SCOPES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    if (this.agencyContext.authType === 'api_key') {
+    if (this.agencyContext.authType === "api_key") {
       if (!requiredScopes?.length) return true; // no scope requirement declared for this route
-      const hasScope = requiredScopes.some((s) => this.agencyContext.scopes.includes(s));
+      const hasScope = requiredScopes.some((s) =>
+        this.agencyContext.scopes.includes(s),
+      );
       if (!hasScope) {
         throw new ForbiddenException({
           code: ErrorCode.FORBIDDEN,
-          message: `This API key is missing a required scope: one of [${requiredScopes.join(', ')}].`,
+          message: `This API key is missing a required scope: one of [${requiredScopes.join(", ")}].`,
         });
       }
       return true;
@@ -58,7 +65,7 @@ export class ScopesOrRolesGuard implements CanActivate {
     if (!role || !requiredRoles.includes(role)) {
       throw new ForbiddenException({
         code: ErrorCode.FORBIDDEN,
-        message: 'Your role does not have access to this action.',
+        message: "Your role does not have access to this action.",
       });
     }
     return true;

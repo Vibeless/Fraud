@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { ANALYSIS_QUEUE } from '../queue.constants';
+import { Injectable } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { ANALYSIS_QUEUE } from "../queue.constants";
 
 export interface AnalysisJobData {
   submissionId: string;
@@ -15,13 +15,15 @@ export interface AnalysisJobData {
  */
 @Injectable()
 export class AnalysisProducer {
-  constructor(@InjectQueue(ANALYSIS_QUEUE) private readonly queue: Queue<AnalysisJobData>) {}
+  constructor(
+    @InjectQueue(ANALYSIS_QUEUE) private readonly queue: Queue<AnalysisJobData>,
+  ) {}
 
   async enqueue(submissionId: string): Promise<void> {
     await this.queue.add(
-      'analyze',
+      "analyze",
       { submissionId },
-      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+      { attempts: 3, backoff: { type: "exponential", delay: 5000 } },
     );
   }
 }

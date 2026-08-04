@@ -3,14 +3,14 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
-import { AppConfigService } from '../../config/app-config.service';
-import { AgencyContext } from '../context/agency-context';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { ErrorCode } from '../filters/api-error';
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { JwtService } from "@nestjs/jwt";
+import { Request } from "express";
+import { AppConfigService } from "../../config/app-config.service";
+import { AgencyContext } from "../context/agency-context";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
+import { ErrorCode } from "../filters/api-error";
 
 export interface JwtPayload {
   sub: string; // userId
@@ -46,7 +46,7 @@ export class JwtGuard implements CanActivate {
     if (!token) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Missing bearer token.',
+        message: "Missing bearer token.",
       });
     }
 
@@ -58,7 +58,7 @@ export class JwtGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,
-        message: 'Invalid or expired session. Refresh or log in again.',
+        message: "Invalid or expired session. Refresh or log in again.",
       });
     }
 
@@ -66,9 +66,10 @@ export class JwtGuard implements CanActivate {
       agencyId: payload.agencyId,
       userId: payload.sub,
       role: payload.role,
-      authType: 'jwt',
+      authType: "jwt",
     });
-    (request as Request & { agencyContext: AgencyContext }).agencyContext = this.agencyContext;
+    (request as Request & { agencyContext: AgencyContext }).agencyContext =
+      this.agencyContext;
 
     return true;
   }
@@ -76,7 +77,7 @@ export class JwtGuard implements CanActivate {
 
 function extractBearerToken(header: string | undefined): string | null {
   if (!header) return null;
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) return null;
+  const [scheme, token] = header.split(" ");
+  if (scheme !== "Bearer" || !token) return null;
   return token;
 }
