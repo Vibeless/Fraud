@@ -67,6 +67,12 @@ export class InitSchema1785674333376 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "IDX_ef99f70367ae769aba6d75134f" ON "submissions" ("agencyId", "status", "createdAt") `,
     );
+    // HAND-AUTHORED FALLBACK: Added manually due to missing local Docker/PostgreSQL connection.
+    // Creates a partial unique index on (agencyId, idempotencyKey) so multiple NULL values are allowed,
+    // but duplicate non-null values for the same agency are rejected.
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "IDX_submissions_agency_id_idempotency_key" ON "submissions" ("agencyId", "idempotencyKey") WHERE "idempotencyKey" IS NOT NULL`,
+    );
     await queryRunner.query(
       `CREATE TABLE "x_data_snapshots" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "submissionId" uuid NOT NULL, "postData" jsonb NOT NULL, "creatorData" jsonb NOT NULL, "engagementSample" jsonb, "collectedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_67820ceae37424fab825ca9abe3" PRIMARY KEY ("id"))`,
     );
@@ -210,6 +216,10 @@ export class InitSchema1785674333376 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "x_data_snapshots"`);
     await queryRunner.query(
       `DROP INDEX "public"."IDX_ef99f70367ae769aba6d75134f"`,
+    );
+    // HAND-AUTHORED FALLBACK: Added manually due to missing local Docker/PostgreSQL connection.
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_submissions_agency_id_idempotency_key"`,
     );
     await queryRunner.query(
       `DROP INDEX "public"."IDX_6979f6b259c3ff19b8d1eb5201"`,
