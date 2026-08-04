@@ -3,9 +3,11 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Max,
   Min,
+  ValidateIf,
   validateSync,
 } from "class-validator";
 
@@ -29,14 +31,60 @@ class EnvironmentVariables {
   @IsNotEmpty()
   CORS_ORIGIN!: string;
 
+  // --- Database (DATABASE_URL or discrete fields) ---
+  @ValidateIf((o) => !o.DB_HOST && !o.DB_PORT && !o.DB_USERNAME && !o.DB_PASSWORD && !o.DB_NAME)
   @IsString()
   @IsNotEmpty()
-  DATABASE_URL!: string;
+  DATABASE_URL?: string;
 
+  @ValidateIf((o) => !o.DATABASE_URL)
   @IsString()
   @IsNotEmpty()
-  REDIS_URL!: string;
+  DB_HOST?: string;
 
+  @ValidateIf((o) => !o.DATABASE_URL)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  DB_PORT?: number;
+
+  @ValidateIf((o) => !o.DATABASE_URL)
+  @IsString()
+  @IsNotEmpty()
+  DB_USERNAME?: string;
+
+  @ValidateIf((o) => !o.DATABASE_URL)
+  @IsString()
+  DB_PASSWORD?: string;
+
+  @ValidateIf((o) => !o.DATABASE_URL)
+  @IsString()
+  @IsNotEmpty()
+  DB_NAME?: string;
+
+  // --- Redis (REDIS_URL or discrete fields) ---
+  @ValidateIf((o) => !o.REDIS_HOST && !o.REDIS_PORT && !o.REDIS_PASSWORD)
+  @IsString()
+  @IsNotEmpty()
+  REDIS_URL?: string;
+
+  @ValidateIf((o) => !o.REDIS_URL)
+  @IsString()
+  @IsNotEmpty()
+  REDIS_HOST?: string;
+
+  @ValidateIf((o) => !o.REDIS_URL)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  REDIS_PORT?: number;
+
+  @ValidateIf((o) => !o.REDIS_URL)
+  @IsString()
+  @IsOptional()
+  REDIS_PASSWORD?: string;
+
+  // --- Auth ---
   @IsString()
   @IsNotEmpty()
   JWT_SIGNING_KEY!: string;
@@ -53,10 +101,21 @@ class EnvironmentVariables {
   @IsNotEmpty()
   ARGON2_PEPPER!: string;
 
+  // --- X (Twitter) API ---
+  @IsString()
+  @IsOptional()
+  X_API_BEARER_TOKEN?: string;
+
+  @IsString()
+  @IsOptional()
+  X_API_BASE_URL?: string;
+
+  // --- API key hashing ---
   @IsString()
   @IsNotEmpty()
   API_KEY_PREFIX!: string;
 
+  // --- Rate limiting (per AAD §3.3) ---
   @IsInt()
   @Min(1)
   RATE_LIMIT_READ_PER_MINUTE!: number;

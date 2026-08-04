@@ -15,9 +15,19 @@ export { ANALYSIS_QUEUE };
     BullModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],
-      useFactory: (config: AppConfigService) => ({
-        connection: { url: config.redisUrl },
-      }),
+      useFactory: (config: AppConfigService) => {
+        const redisConfig = config.redis;
+        if (redisConfig.url) {
+          return { connection: { url: redisConfig.url } };
+        }
+        return {
+          connection: {
+            host: redisConfig.host,
+            port: redisConfig.port,
+            password: redisConfig.password,
+          },
+        };
+      },
     }),
     BullModule.registerQueue({ name: ANALYSIS_QUEUE }),
     DetectionModule,

@@ -12,7 +12,7 @@ async function bootstrap() {
   const logger = new Logger("Bootstrap");
 
   app.use(helmet());
-  app.enableCors({ origin: config.corsOrigin, credentials: true });
+  app.enableCors({ origin: config.app.corsOrigins, credentials: true });
 
   // Global validation: every request body/query is validated against its
   // DTO; unknown fields are stripped rather than silently accepted. See
@@ -28,9 +28,9 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  await app.listen(config.port);
+  await app.listen(config.app.port);
   logger.log(
-    `Campaign Integrity API listening on :${config.port} (${config.nodeEnv})`,
+    `Campaign Integrity API listening on :${config.app.port} (${config.app.env})`,
   );
 }
 

@@ -12,7 +12,7 @@ import { ENTITIES } from "./entities";
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => ({
         type: "postgres" as const,
-        url: config.databaseUrl,
+        ...config.database,
         entities: ENTITIES,
         // Migrations are the only sanctioned way to change schema — see
         // docs/specs/07_CICD_Strategy.md §6. synchronize is hard-disabled,
@@ -21,7 +21,7 @@ import { ENTITIES } from "./entities";
         synchronize: false,
         migrationsRun: false,
         logging:
-          config.nodeEnv === "development" ? ["error", "warn"] : ["error"],
+          config.app.env === "development" ? ["error", "warn"] : ["error"],
       }),
     }),
   ],

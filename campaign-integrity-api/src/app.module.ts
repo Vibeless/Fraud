@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { validateEnv } from "./config/env.validation";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD } from "@nestjs/core";
 import { AppConfigModule } from "./config/config.module";
@@ -25,6 +27,11 @@ import { QueueModule } from "./queue/queue.module";
  */
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+      envFilePath: [".env"],
+    }),
     AppConfigModule,
     RedisModule,
     DatabaseModule,
@@ -37,7 +44,7 @@ import { QueueModule } from "./queue/queue.module";
           {
             name: "default",
             ttl: 60_000,
-            limit: config.rateLimitReadPerMinute,
+            limit: config.app.rateLimitReadPerMinute,
           },
         ],
       }),
