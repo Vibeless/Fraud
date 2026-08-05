@@ -25,7 +25,10 @@ export enum SubmissionStatus {
 /** DDS §4 — submissions: one X post submitted for analysis (FR-001). */
 @Entity("submissions")
 @Index(["agencyId", "status", "createdAt"])
-@Index(["agencyId", "idempotencyKey"], { unique: true, where: `"idempotencyKey" IS NOT NULL` })
+@Index("IDX_submissions_agency_id_idempotency_key", ["agencyId", "idempotencyKey"], {
+  unique: true,
+  where: `"idempotencyKey" IS NOT NULL`,
+})
 export class Submission {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
