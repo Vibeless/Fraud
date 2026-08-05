@@ -67,8 +67,9 @@ export class InitSchema1785674333376 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "IDX_ef99f70367ae769aba6d75134f" ON "submissions" ("agencyId", "status", "createdAt") `,
     );
+    // Partial unique index on (agencyId, idempotencyKey) - explicitly named for readability and log tracing.
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_d9b3b17ee57e4917c458d38ff1" ON "submissions" ("agencyId", "idempotencyKey") WHERE "idempotencyKey" IS NOT NULL`,
+      `CREATE UNIQUE INDEX "IDX_submissions_agency_id_idempotency_key" ON "submissions" ("agencyId", "idempotencyKey") WHERE "idempotencyKey" IS NOT NULL`,
     );
     await queryRunner.query(
       `CREATE TABLE "x_data_snapshots" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "submissionId" uuid NOT NULL, "postData" jsonb NOT NULL, "creatorData" jsonb NOT NULL, "engagementSample" jsonb, "collectedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_67820ceae37424fab825ca9abe3" PRIMARY KEY ("id"))`,
@@ -215,7 +216,7 @@ export class InitSchema1785674333376 implements MigrationInterface {
       `DROP INDEX "public"."IDX_ef99f70367ae769aba6d75134f"`,
     );
     await queryRunner.query(
-      `DROP INDEX "public"."IDX_d9b3b17ee57e4917c458d38ff1"`,
+      `DROP INDEX "public"."IDX_submissions_agency_id_idempotency_key"`,
     );
     await queryRunner.query(
       `DROP INDEX "public"."IDX_6979f6b259c3ff19b8d1eb5201"`,

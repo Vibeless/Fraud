@@ -1,57 +1,38 @@
-import { Controller, Get, Inject } from "@nestjs/common";
-import { InjectDataSource } from "@nestjs/typeorm";
-import { DataSource } from "typeorm";
-import Redis from "ioredis";
+import { Controller, Get, Res, HttpStatus } from "@nestjs/common";
+import { Response } from "express";
 import { Public } from "../../common/decorators/public.decorator";
-import { REDIS_CLIENT } from "../../common/redis/redis.module";
+import { HealthService, HealthCheckResponse } from "./health.service";
 
-type DependencyStatus = "ok" | "error";
-
-/** GET /v1/health — docs/specs/02_API_Specification_OAS.md §11. */
+/**
+ * GET /v1/health — Liveness/readiness probe for load balancers and orchestration.
+ * Per API Specification (OAS) §11 and Backend Folder Structure Specification §4.
+ *
+ * Auth: None (OAS §2, §11 — public unauthenticated endpoint).
+ *
+ * NOTE ON STATUS CODE POLICY (200 / 503 split):
+ * Per Deployment Architecture §4, this endpoint gates traffic at the load balancer,
+ * and load balancer / orchestrator health checks key off HTTP status code, not response body.
+ * A 200 with a degraded body would look healthy to infra tooling even when it isn't.
+ * The body still reports per-dependency detail on failure for human/monitoring consumption,
+ * but the status code is what the load balancer acts on.
+ */
 @Controller("v1/health")
 export class HealthController {
-  constructor(
-    @InjectDataSource() private readonly dataSource: DataSource,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
-  ) {}
+  constructor(private readonly healthService: HealthService) {}
 
   @Public()
   @Get()
-  async check() {
-    const [database, redis] = await Promise.all([
-      this.checkDatabase(),
-      this.checkRedis(),
-    ]);
+  async check(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<HealthCheckResponse> {
+    const response = await this.healthService.checkHealth();
 
-    const dependencies: Record<string, DependencyStatus> = {
-      database,
-      redis,
-      queue: redis,
-    };
-    const overallOk = Object.values(dependencies).every((s) => s === "ok");
-
-    return {
-      status: overallOk ? "ok" : "degraded",
-      version: process.env.npm_package_version ?? "0.1.0",
-      dependencies,
-    };
-  }
-
-  private async checkDatabase(): Promise<DependencyStatus> {
-    try {
-      await this.dataSource.query("SELECT 1");
-      return "ok";
-    } catch {
-      return "error";
+    if (response.status !== "ok") {
+      res.status(HttpStatus.SERVICE_UNAVAILABLE); // 503
+    } else {
+      res.status(HttpStatus.OK); // 200
     }
-  }
 
-  private async checkRedis(): Promise<DependencyStatus> {
-    try {
-      await this.redis.ping();
-      return "ok";
-    } catch {
-      return "error";
-    }
+    return response;
   }
 }
