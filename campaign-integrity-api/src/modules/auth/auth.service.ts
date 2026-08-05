@@ -138,12 +138,12 @@ export class AuthService {
   private async issueTokenPair(user: User): Promise<TokenPair> {
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, agencyId: user.agencyId, role: user.role },
-      { expiresIn: this.config.jwtAccessTokenTtlSeconds },
+      { expiresIn: this.config.jwt.accessTtl },
     );
 
     const refreshToken = randomBytes(32).toString("base64url");
     const hash = hashToken(refreshToken);
-    const ttl = this.config.jwtRefreshTokenTtlSeconds;
+    const ttl = this.config.jwt.refreshTtl;
 
     await this.redis.set(
       REFRESH_KEY_PREFIX + hash,
@@ -157,7 +157,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: this.config.jwtAccessTokenTtlSeconds,
+      expiresIn: this.config.jwt.accessTtl,
     };
   }
 

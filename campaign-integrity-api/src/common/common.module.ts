@@ -55,8 +55,8 @@ const CommonTypeOrmFeature = TypeOrmModule.forFeature([ApiKey, AuditLog]);
       imports: [AppConfigModule],
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => ({
-        secret: config.jwtSigningKey,
-        signOptions: { expiresIn: config.jwtAccessTokenTtlSeconds },
+        secret: config.jwt.accessSecret,
+        signOptions: { expiresIn: config.jwt.accessTtl },
       }),
     }),
   ],

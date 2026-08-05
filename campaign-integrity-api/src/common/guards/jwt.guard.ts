@@ -53,7 +53,7 @@ export class JwtGuard implements CanActivate {
     let payload: JwtPayload;
     try {
       payload = await this.jwt.verifyAsync<JwtPayload>(token, {
-        secret: this.config.jwtSigningKey,
+        secret: this.config.jwt.accessSecret,
       });
     } catch {
       throw new UnauthorizedException({

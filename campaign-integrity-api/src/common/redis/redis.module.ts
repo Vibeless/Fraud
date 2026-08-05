@@ -18,7 +18,17 @@ export const REDIS_CLIENT = "REDIS_CLIENT";
     {
       provide: REDIS_CLIENT,
       inject: [AppConfigService],
-      useFactory: (config: AppConfigService) => new Redis(config.redisUrl),
+      useFactory: (config: AppConfigService) => {
+        const redisConfig = config.redis;
+        if (redisConfig.url) {
+          return new Redis(redisConfig.url);
+        }
+        return new Redis({
+          host: redisConfig.host,
+          port: redisConfig.port,
+          password: redisConfig.password,
+        });
+      },
     },
   ],
   exports: [REDIS_CLIENT],
