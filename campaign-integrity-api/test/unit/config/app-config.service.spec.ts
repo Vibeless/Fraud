@@ -123,21 +123,6 @@ describe("AppConfigService", () => {
         refreshTtl: 2592000,
       });
     });
-
-    it("should return correct compatibility getters mapping to jwt settings", async () => {
-      mockConfigService.getOrThrow.mockImplementation((key: string) => {
-        const values: Record<string, any> = {
-          JWT_SIGNING_KEY: "signing-key-value",
-          JWT_ACCESS_TOKEN_TTL_SECONDS: 900,
-          JWT_REFRESH_TOKEN_TTL_SECONDS: 2592000,
-        };
-        return values[key];
-      });
-      await createService();
-
-      expect(service.jwtAccessTokenTtlSeconds).toBe(900);
-      expect(service.jwtRefreshTokenTtlSeconds).toBe(2592000);
-    });
   });
 
   describe("argon2", () => {

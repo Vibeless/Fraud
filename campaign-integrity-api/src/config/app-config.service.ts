@@ -109,13 +109,4 @@ export class AppConfigService {
       baseUrl: this.config.get<string>("X_API_BASE_URL") ?? "https://api.twitter.com",
     };
   }
-
-  // --- Legacy compatibility getters to support compiling modules/ ---
-  get jwtAccessTokenTtlSeconds(): number {
-    return this.jwt.accessTtl;
-  }
-
-  get jwtRefreshTokenTtlSeconds(): number {
-    return this.jwt.refreshTtl;
-  }
 }
