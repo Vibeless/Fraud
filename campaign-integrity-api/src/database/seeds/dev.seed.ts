@@ -118,7 +118,8 @@ export async function seedDevData(): Promise<void> {
     },
   ];
 
-  const summaryResults: Array<{ Email: string; Role: string; Status: string }> = [];
+  const summaryResults: Array<{ Email: string; Role: string; Status: string }> =
+    [];
 
   for (const userDef of userDefs) {
     const existingUser = await userRepo.findOne({

@@ -93,7 +93,9 @@ describe("HealthModule (Unit)", () => {
 
     it("should return status error when redis is down", async () => {
       mockDataSource.query.mockResolvedValue([{ 1: 1 }]);
-      mockRedisClient.ping.mockRejectedValue(new Error("Redis Connection Refused"));
+      mockRedisClient.ping.mockRejectedValue(
+        new Error("Redis Connection Refused"),
+      );
       mockQueue.waitUntilReady.mockResolvedValue(undefined);
       mockQueue.getJobCounts.mockResolvedValue({ active: 0, waiting: 0 });
 

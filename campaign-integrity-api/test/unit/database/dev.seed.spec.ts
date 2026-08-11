@@ -72,13 +72,17 @@ describe("dev.seed.ts", () => {
 
       const mockAgencyRepo = {
         findOne: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation((dto) => ({ id: "agency-uuid-1", ...dto })),
+        create: jest
+          .fn()
+          .mockImplementation((dto) => ({ id: "agency-uuid-1", ...dto })),
         save: jest.fn().mockImplementation((agency) => Promise.resolve(agency)),
       };
 
       const mockUserRepo = {
         findOne: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockImplementation((dto) => ({ id: "user-uuid-1", ...dto })),
+        create: jest
+          .fn()
+          .mockImplementation((dto) => ({ id: "user-uuid-1", ...dto })),
         save: jest.fn().mockImplementation((user) => Promise.resolve(user)),
       };
 
@@ -89,8 +93,12 @@ describe("dev.seed.ts", () => {
         return mockUserRepo;
       });
 
-      const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-      const tableSpy = jest.spyOn(console, "table").mockImplementation(() => {});
+      const consoleSpy = jest
+        .spyOn(console, "log")
+        .mockImplementation(() => {});
+      const tableSpy = jest
+        .spyOn(console, "table")
+        .mockImplementation(() => {});
 
       await seedDevData();
 
