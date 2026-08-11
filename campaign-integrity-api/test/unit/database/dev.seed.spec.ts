@@ -3,7 +3,6 @@ import {
   seedDevData,
 } from "../../../src/database/seeds/dev.seed";
 import dataSource from "../../../src/database/data-source";
-import * as argon2 from "argon2";
 
 jest.mock("../../../src/database/data-source", () => ({
   __esModule: true,
