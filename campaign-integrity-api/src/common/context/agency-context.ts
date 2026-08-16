@@ -16,6 +16,7 @@ import { Injectable, Scope } from "@nestjs/common";
 export class AgencyContext {
   private _agencyId: string | null = null;
   private _userId: string | null = null;
+  private _email: string | null = null;
   private _role: string | null = null;
   private _authType: "api_key" | "jwt" | null = null;
   private _scopes: string[] = [];
@@ -23,12 +24,14 @@ export class AgencyContext {
   set(params: {
     agencyId: string | null;
     userId?: string | null;
+    email?: string | null;
     role?: string | null;
     scopes?: string[];
     authType: "api_key" | "jwt";
   }) {
     this._agencyId = params.agencyId;
     this._userId = params.userId ?? null;
+    this._email = params.email ?? null;
     this._role = params.role ?? null;
     this._scopes = params.scopes ?? [];
     this._authType = params.authType;
@@ -57,6 +60,10 @@ export class AgencyContext {
 
   get userId(): string | null {
     return this._userId;
+  }
+
+  get email(): string | null {
+    return this._email;
   }
 
   get role(): string | null {

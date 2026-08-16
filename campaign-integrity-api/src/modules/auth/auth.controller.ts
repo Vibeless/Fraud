@@ -51,6 +51,6 @@ export class AuthController {
   @UseGuards(JwtGuard)
   @Get("me")
   me(@CurrentAgency() ctx: AgencyContext) {
-    return { id: ctx.userId, role: ctx.role, agencyId: ctx.agencyId };
+    return { id: ctx.userId, email: ctx.email, role: ctx.role, agencyId: ctx.agencyId };
   }
 }

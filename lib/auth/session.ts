@@ -16,6 +16,18 @@ export interface LoginResponse {
   user: UserSession;
 }
 
+export interface RefreshResponse {
+  accessToken: string;
+  expiresIn: number;
+}
+
+export interface UserMeResponse {
+  id: string;
+  email?: string;
+  role: string;
+  agencyId?: string | null;
+}
+
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -24,6 +36,11 @@ export interface LoginCredentials {
 export interface LoginResult {
   success: boolean;
   user?: UserSession;
+  error?: string;
+}
+
+export interface LogoutResult {
+  success: boolean;
   error?: string;
 }
 
@@ -81,6 +98,111 @@ export async function login(credentials: LoginCredentials): Promise<LoginResult>
     return {
       success: false,
       error: 'An unexpected error occurred.',
+    };
+  }
+}
+
+/**
+ * Retrieves the currently authenticated user's session by calling GET /v1/auth/me per OAS §8.
+ * Automatically refreshes the session via POST /v1/auth/refresh if the access token has expired.
+ */
+export async function getCurrentUser(): Promise<UserSession | null> {
+  try {
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('ci_access_token')?.value;
+    const refreshToken = cookieStore.get('ci_refresh_token')?.value;
+
+    if (!accessToken && !refreshToken) {
+      return null;
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (accessToken) {
+      try {
+        const user = await apiClient<UserMeResponse>('auth/me', {
+          method: 'GET',
+          token: accessToken,
+        });
+
+        return {
+          id: user.id,
+          email: user.email || '',
+          role: user.role,
+        };
+      } catch (err) {
+        // If 401 and refreshToken exists, fall through to refresh
+        if (!(err instanceof ApiClientError && err.statusCode === 401) || !refreshToken) {
+          return null;
+        }
+      }
+    }
+
+    if (refreshToken) {
+      try {
+        const refreshData = await apiClient<RefreshResponse>('auth/refresh', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        cookieStore.set('ci_access_token', refreshData.accessToken, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: refreshData.expiresIn,
+        });
+
+        const user = await apiClient<UserMeResponse>('auth/me', {
+          method: 'GET',
+          token: refreshData.accessToken,
+        });
+
+        return {
+          id: user.id,
+          email: user.email || '',
+          role: user.role,
+        };
+      } catch {
+        cookieStore.delete('ci_access_token');
+        cookieStore.delete('ci_refresh_token');
+        return null;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Logs out the current session by calling POST /v1/auth/logout and clearing httpOnly cookies.
+ */
+export async function logout(): Promise<LogoutResult> {
+  try {
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('ci_access_token')?.value;
+
+    if (accessToken) {
+      try {
+        await apiClient('auth/logout', {
+          method: 'POST',
+          token: accessToken,
+        });
+      } catch {
+        // Ignore API logout error and proceed to clear cookies
+      }
+    }
+
+    cookieStore.delete('ci_access_token');
+    cookieStore.delete('ci_refresh_token');
+
+    return { success: true };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An error occurred during logout.',
     };
   }
 }

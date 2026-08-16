@@ -137,7 +137,7 @@ export class AuthService {
 
   private async issueTokenPair(user: User): Promise<TokenPair> {
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, agencyId: user.agencyId, role: user.role },
+      { sub: user.id, agencyId: user.agencyId, role: user.role, email: user.email },
       { expiresIn: this.config.jwt.accessTtl },
     );
 
