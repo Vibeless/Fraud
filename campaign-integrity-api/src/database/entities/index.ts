@@ -2,6 +2,7 @@ export * from "./agency.entity";
 export * from "./user.entity";
 export * from "./api-key.entity";
 export * from "./campaign.entity";
+export * from "./campaign-analysis.entity";
 export * from "./creator.entity";
 export * from "./submission.entity";
 export * from "./x-data-snapshot.entity";
@@ -13,6 +14,7 @@ import { Agency } from "./agency.entity";
 import { User } from "./user.entity";
 import { ApiKey } from "./api-key.entity";
 import { Campaign } from "./campaign.entity";
+import { CampaignAnalysis } from "./campaign-analysis.entity";
 import { Creator } from "./creator.entity";
 import { Submission } from "./submission.entity";
 import { XDataSnapshot } from "./x-data-snapshot.entity";
@@ -32,6 +34,7 @@ export const ENTITIES = [
   User,
   ApiKey,
   Campaign,
+  CampaignAnalysis,
   Creator,
   Submission,
   XDataSnapshot,

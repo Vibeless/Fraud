@@ -11,20 +11,11 @@ import { RedisModule } from "./common/redis/redis.module";
 import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { SubmissionsModule } from "./modules/submissions/submissions.module";
+import { CampaignsModule } from "./modules/campaigns/campaigns.module";
 import { IntelligenceModule } from "./modules/intelligence/intelligence.module";
 import { DetectionModule } from "./modules/detection/detection.module";
 import { QueueModule } from "./queue/queue.module";
 
-/**
- * TRIMMED STARTER STATE: this is the minimal vertical slice — health,
- * auth, and the full submissions -> detection pipeline (collect ->
- * validate -> one rule -> aggregate -> evidence) — proven to build,
- * typecheck, and run against a real Postgres + Redis. campaigns,
- * api-keys, and audit-log-viewing are NOT yet built as feature modules;
- * their entities/tables already exist (see the migration) and this is
- * intentionally where you build them next. See AGENTS.md and
- * .agents/skills/add-api-endpoint/SKILL.md.
- */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -51,6 +42,7 @@ import { QueueModule } from "./queue/queue.module";
     }),
     HealthModule,
     AuthModule,
+    CampaignsModule,
     IntelligenceModule,
     DetectionModule,
     QueueModule,
