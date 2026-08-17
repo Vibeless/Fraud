@@ -11,7 +11,6 @@ import {
 import { SubmissionsService } from "./submissions.service";
 import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { ListSubmissionsQueryDto } from "./dto/list-submissions-query.dto";
-import { ApiKeyGuard } from "../../common/guards/api-key.guard";
 import { AuthGuard } from "../../common/guards/auth.guard";
 import { ScopesOrRolesGuard } from "../../common/guards/scopes-or-roles.guard";
 import { RequireScopes } from "../../common/decorators/require-scopes.decorator";
