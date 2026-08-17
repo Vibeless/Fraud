@@ -60,8 +60,8 @@ export class LoggingInterceptor implements NestInterceptor {
     callerType: string,
   ) {
     const agencyId = (
-      request as Request & { agencyContext?: { agencyId?: string } }
-    ).agencyContext?.agencyId;
+      request as Request & { agencyContext?: { agencyIdOrNull?: string | null } }
+    ).agencyContext?.agencyIdOrNull;
     this.logger.log(
       JSON.stringify({
         correlationId,

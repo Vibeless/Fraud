@@ -26,6 +26,12 @@ export interface JwtConfig {
 
 export interface Argon2Config {
   pepper: string;
+  apiKeyPepper: string;
+}
+
+export interface ApiKeyConfig {
+  prefix: string;
+  hashPepper: string;
 }
 
 export interface AppConfig {
@@ -91,6 +97,14 @@ export class AppConfigService {
   get argon2(): Argon2Config {
     return {
       pepper: this.config.getOrThrow<string>("ARGON2_PEPPER"),
+      apiKeyPepper: this.config.getOrThrow<string>("API_KEY_HASH_PEPPER"),
+    };
+  }
+
+  get apiKey(): ApiKeyConfig {
+    return {
+      prefix: this.config.getOrThrow<string>("API_KEY_PREFIX"),
+      hashPepper: this.config.getOrThrow<string>("API_KEY_HASH_PEPPER"),
     };
   }
 

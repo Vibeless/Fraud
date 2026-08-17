@@ -15,6 +15,7 @@ import { CampaignsModule } from "./modules/campaigns/campaigns.module";
 import { IntelligenceModule } from "./modules/intelligence/intelligence.module";
 import { DetectionModule } from "./modules/detection/detection.module";
 import { QueueModule } from "./queue/queue.module";
+import { ApiKeysModule } from "./modules/api-keys/api-keys.module";
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { QueueModule } from "./queue/queue.module";
     }),
     HealthModule,
     AuthModule,
+    ApiKeysModule,
     CampaignsModule,
     IntelligenceModule,
     DetectionModule,

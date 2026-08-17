@@ -1,7 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { Analysis, Creator, Submission } from "../../database/entities";
+
+export interface CreatorContext {
+  accountAgeSummary: string;
+  followerCount: number;
+  priorSubmissionsCount: number;
+  priorSubmissionsAvgRiskScore: number | null;
+}
 
 /**
  * docs/specs/05_Backend_Folder_Structure_Specification.md §6 — Campaign
@@ -34,8 +41,6 @@ export class CreatorHistoryService {
     if (existing) {
       await this.creators.update(existing.id, {
         xUsername: params.xUsername,
-        // Same QueryDeepPartialEntity + jsonb limitation as auth.service.ts.
-
         cachedProfile: params.profileSnapshot as any,
         lastSeenAt: now,
       });
@@ -71,4 +76,98 @@ export class CreatorHistoryService {
       take: limit,
     });
   }
+
+  /**
+   * Assembles the DUXS §4.3 Creator Context object for analysis responses.
+   * Scoped strictly to the requesting agency's prior submissions.
+   */
+  async getCreatorContext(
+    creatorId: string,
+    agencyId: string,
+    excludeSubmissionId?: string,
+  ): Promise<CreatorContext | null> {
+    const creator = await this.creators.findOne({ where: { id: creatorId } });
+    if (!creator) return null;
+
+    // 1. Account age summary
+    const profile = (creator.cachedProfile ?? {}) as Record<string, unknown>;
+    const rawCreatedAt = (profile.createdAt ?? profile.created_at) as
+      | string
+      | undefined;
+    const accountCreatedAt = rawCreatedAt
+      ? new Date(rawCreatedAt)
+      : creator.firstSeenAt;
+    const accountAgeSummary = formatAccountAge(accountCreatedAt);
+
+    // 2. Follower count
+    const publicMetrics = profile.publicMetrics as
+      | Record<string, unknown>
+      | undefined;
+    const followerCount = Number(
+      profile.followersCount ??
+        profile.followers_count ??
+        publicMetrics?.followersCount ??
+        publicMetrics?.followers_count ??
+        0,
+    );
+
+    // 3. Prior submissions & avg risk score for this agency
+    const submissions = await this.submissions.find({
+      where: { creatorId, agencyId },
+      select: ["id"],
+    });
+
+    const priorSubmissions = excludeSubmissionId
+      ? submissions.filter((s) => s.id !== excludeSubmissionId)
+      : submissions;
+
+    const priorSubmissionsCount = priorSubmissions.length;
+    let priorSubmissionsAvgRiskScore: number | null = null;
+
+    if (priorSubmissionsCount > 0) {
+      const priorAnalyses = await this.analyses.find({
+        where: {
+          submissionId: In(priorSubmissions.map((s) => s.id)),
+        },
+      });
+
+      const scoredAnalyses = priorAnalyses.filter(
+        (a) => a.riskScore !== null && a.riskScore !== undefined,
+      );
+
+      if (scoredAnalyses.length > 0) {
+        const total = scoredAnalyses.reduce(
+          (sum, a) => sum + (a.riskScore ?? 0),
+          0,
+        );
+        priorSubmissionsAvgRiskScore = Math.round(total / scoredAnalyses.length);
+      }
+    }
+
+    return {
+      accountAgeSummary,
+      followerCount,
+      priorSubmissionsCount,
+      priorSubmissionsAvgRiskScore,
+    };
+  }
+}
+
+function formatAccountAge(createdAt: Date): string {
+  const now = new Date();
+  const diffMs = Math.max(0, now.getTime() - createdAt.getTime());
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffYears = Math.floor(diffDays / 365);
+  const diffMonths = Math.floor(diffDays / 30);
+
+  if (diffYears >= 1) {
+    return `Account created ${diffYears} year${diffYears === 1 ? "" : "s"} ago`;
+  }
+  if (diffMonths >= 1) {
+    return `Account created ${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`;
+  }
+  if (diffDays >= 1) {
+    return `Account created ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+  }
+  return "Account created recently";
 }

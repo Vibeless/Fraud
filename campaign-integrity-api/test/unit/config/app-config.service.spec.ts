@@ -126,15 +126,33 @@ describe("AppConfigService", () => {
   });
 
   describe("argon2", () => {
-    it("should return argon2 pepper config", async () => {
+    it("should return argon2 pepper and apiKeyPepper config", async () => {
       mockConfigService.getOrThrow.mockImplementation((key: string) => {
         if (key === "ARGON2_PEPPER") return "pepper-value";
+        if (key === "API_KEY_HASH_PEPPER") return "api-key-pepper-value";
         return undefined;
       });
       await createService();
 
       expect(service.argon2).toEqual({
         pepper: "pepper-value",
+        apiKeyPepper: "api-key-pepper-value",
+      });
+    });
+  });
+
+  describe("apiKey", () => {
+    it("should return apiKey config with prefix and hashPepper", async () => {
+      mockConfigService.getOrThrow.mockImplementation((key: string) => {
+        if (key === "API_KEY_PREFIX") return "ci_live_";
+        if (key === "API_KEY_HASH_PEPPER") return "api-key-pepper-value";
+        return undefined;
+      });
+      await createService();
+
+      expect(service.apiKey).toEqual({
+        prefix: "ci_live_",
+        hashPepper: "api-key-pepper-value",
       });
     });
   });

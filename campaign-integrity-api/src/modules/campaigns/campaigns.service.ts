@@ -75,8 +75,10 @@ export class CampaignsService {
   /**
    * GET /v1/campaigns/:id — OAS §7
    */
-  async findById(agencyId: string, id: string) {
-    const campaign = await this.findScoped({ id, agencyId });
+  async findById(agencyId: string | null, id: string) {
+    const campaign = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
     return this.toPublicCampaign(campaign);
   }
 
@@ -84,8 +86,10 @@ export class CampaignsService {
    * PATCH /v1/campaigns/:id/activate
    * draft -> active only. 409 Conflict if not in draft.
    */
-  async activate(agencyId: string, id: string) {
-    const campaign = await this.findScoped({ id, agencyId });
+  async activate(agencyId: string | null, id: string) {
+    const campaign = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
 
     if (campaign.status !== CampaignStatus.DRAFT) {
       throw new ConflictException({
@@ -105,8 +109,10 @@ export class CampaignsService {
    * On success: auto-triggers final async analysis run, locks submissions,
    * produces new versioned CampaignAnalysis with trigger: campaign_closed.
    */
-  async close(agencyId: string, id: string) {
-    const campaign = await this.findScoped({ id, agencyId });
+  async close(agencyId: string | null, id: string) {
+    const campaign = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
 
     if (campaign.status !== CampaignStatus.ACTIVE) {
       throw new ConflictException({
@@ -150,8 +156,10 @@ export class CampaignsService {
    * On success: marks prior analyses stale (does NOT delete them per DDS §7 append-only principle),
    * allows new submissions again.
    */
-  async reopen(agencyId: string, id: string) {
-    const campaign = await this.findScoped({ id, agencyId });
+  async reopen(agencyId: string | null, id: string) {
+    const campaign = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
 
     if (campaign.status !== CampaignStatus.CLOSED) {
       throw new ConflictException({
@@ -178,8 +186,10 @@ export class CampaignsService {
    * Does NOT change campaign status.
    * Produces a new versioned CampaignAnalysis row with trigger: manual.
    */
-  async analyze(agencyId: string, id: string) {
-    const campaign = await this.findScoped({ id, agencyId });
+  async analyze(agencyId: string | null, id: string) {
+    const campaign = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
 
     if (campaign.status !== CampaignStatus.ACTIVE) {
       throw new BadRequestException({

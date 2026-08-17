@@ -66,7 +66,7 @@ export class AuditInterceptor implements NestInterceptor {
           actorId: agencyContext?.userId ?? null,
           action,
           resourceType: action.split(".")[0] ?? null,
-          resourceId: extractResourceId(result),
+          resourceId: extractResourceId(result, request),
           metadata: null,
           ipAddress: request.ip ?? null,
         });
@@ -84,10 +84,13 @@ function safeAgencyId(ctx: AgencyContext | undefined): string | null {
   }
 }
 
-function extractResourceId(result: unknown): string | null {
+function extractResourceId(result: unknown, request?: Request): string | null {
   if (result && typeof result === "object" && "id" in result) {
     const id = (result as { id: unknown }).id;
     return typeof id === "string" ? id : null;
+  }
+  if (request?.params?.id && typeof request.params.id === "string") {
+    return request.params.id;
   }
   return null;
 }

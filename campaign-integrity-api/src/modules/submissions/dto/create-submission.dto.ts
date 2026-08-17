@@ -19,4 +19,8 @@ export class CreateSubmissionDto {
   @IsString()
   @MaxLength(255)
   externalSubmissionId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  agencyId?: string;
 }

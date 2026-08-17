@@ -148,7 +148,13 @@ This is the primary result endpoint. It returns exactly the fields an agency nee
 }
 ],
 "analysisVersion": "engine-1.4.0+rules-2026.07",
-"analyzedAt": "2026-08-01T14:32:41Z"
+"analyzedAt": "2026-08-01T14:32:41Z",
+"creatorContext": {
+"accountAgeSummary": "Account created 3 years ago",
+"followerCount": 12500,
+"priorSubmissionsCount": 2,
+"priorSubmissionsAvgRiskScore": 42
+}
 }
 ```
 #### Error Responses
@@ -170,6 +176,43 @@ Used to retrieve a historical analysis after re-analysis has produced a newer on
 #### Response
 
 200 OK — same schema as GET /v1/submissions/{id}/analysis
+
+| **PATCH** | **/v1/submissions/{id}/review** |
+|-----------|---------------------------------|
+
+#### Persist reviewer notes and mark a submission reviewed (DUXS §4.3).
+
+**Auth:** Dashboard JWT only (agency_admin, fraud_reviewer)
+
+#### Request Body
+```
+{
+"reviewerNote": "Spike in new accounts looks inorganic. Flagged for agency lead.",
+"markReviewed": true
+}
+```
+
+#### Response
+```
+200 OK
+{
+"id": "b6b1...c2",
+"status": "completed",
+"reviewerNote": "Spike in new accounts looks inorganic. Flagged for agency lead.",
+"reviewedBy": "u123...45",
+"reviewedAt": "2026-08-17T12:00:00Z",
+"updatedAt": "2026-08-17T12:00:00Z"
+}
+```
+
+#### Error Responses
+
+| **Status** | **Code**         | **Meaning**                                             |
+|------------|------------------|---------------------------------------------------------|
+| 400        | VALIDATION_ERROR | Request body validation failed                          |
+| 401        | UNAUTHORIZED     | Missing or invalid dashboard session token              |
+| 403        | FORBIDDEN        | Caller does not have fraud_reviewer or agency_admin role|
+| 404        | NOT_FOUND        | Submission not found for caller's agency                |
 
 ## 6. Listing & Filtering (Dashboard + API)
 

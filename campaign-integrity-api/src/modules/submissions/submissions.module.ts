@@ -7,6 +7,7 @@ import { Analysis, Finding, Submission } from "../../database/entities";
 import { QueueModule } from "../../queue/queue.module";
 import { DetectionModule } from "../detection/detection.module";
 import { CampaignsModule } from "../campaigns/campaigns.module";
+import { IntelligenceModule } from "../intelligence/intelligence.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { CampaignsModule } from "../campaigns/campaigns.module";
     QueueModule,
     DetectionModule,
     CampaignsModule,
+    IntelligenceModule,
   ],
   controllers: [SubmissionsController, AnalysesController],
   providers: [SubmissionsService],

@@ -122,6 +122,10 @@ class EnvironmentVariables {
   @IsNotEmpty()
   API_KEY_PREFIX!: string;
 
+  @IsString()
+  @IsNotEmpty()
+  API_KEY_HASH_PEPPER!: string;
+
   // --- Rate limiting (per AAD §3.3) ---
   @IsInt()
   @Min(1)

@@ -2,7 +2,7 @@ import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { JwtService } from "@nestjs/jwt";
 import { Repository } from "typeorm";
-import * as argon2 from "argon2";
+import { verifySecret } from "../../common/crypto/argon2.util";
 import { randomBytes, createHash } from "crypto";
 import Redis from "ioredis";
 import { REDIS_CLIENT } from "../../common/redis/redis.module";
@@ -59,7 +59,11 @@ export class AuthService {
     });
 
     const passwordOk = user
-      ? await argon2.verify(user.passwordHash, password)
+      ? await verifySecret(
+          user.passwordHash,
+          password,
+          this.config.argon2.pepper,
+        )
       : false;
 
     if (!user || !passwordOk || user.status !== UserStatus.ACTIVE) {

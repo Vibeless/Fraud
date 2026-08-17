@@ -29,6 +29,8 @@ describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
   let agencyA: Agency;
   let agencyB: Agency;
 
+  let platformAdminToken: string;
+  let adminTokenAgencyA: string;
   let managerTokenAgencyA: string;
   let viewerTokenAgencyA: string;
   let managerTokenAgencyB: string;
@@ -76,6 +78,26 @@ describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
       }),
     );
 
+    const platformAdmin = await userRepo.save(
+      userRepo.create({
+        email: `platform-admin-${Date.now()}@campaignintegrity.local`,
+        agencyId: null,
+        role: UserRole.PLATFORM_ADMIN,
+        status: UserStatus.ACTIVE,
+        passwordHash: "dummy-hash",
+      }),
+    );
+
+    const adminA = await userRepo.save(
+      userRepo.create({
+        email: `admin-a-${Date.now()}@alpha.com`,
+        agencyId: agencyA.id,
+        role: UserRole.AGENCY_ADMIN,
+        status: UserStatus.ACTIVE,
+        passwordHash: "dummy-hash",
+      }),
+    );
+
     const managerA = await userRepo.save(
       userRepo.create({
         email: `manager-a-${Date.now()}@alpha.com`,
@@ -107,6 +129,16 @@ describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
     );
 
     const secret = configService.jwt.accessSecret;
+    platformAdminToken = jwtService.sign(
+      { sub: platformAdmin.id, agencyId: null, role: UserRole.PLATFORM_ADMIN },
+      { secret, expiresIn: "1h" },
+    );
+
+    adminTokenAgencyA = jwtService.sign(
+      { sub: adminA.id, agencyId: agencyA.id, role: UserRole.AGENCY_ADMIN },
+      { secret, expiresIn: "1h" },
+    );
+
     managerTokenAgencyA = jwtService.sign(
       { sub: managerA.id, agencyId: agencyA.id, role: UserRole.CAMPAIGN_MANAGER },
       { secret, expiresIn: "1h" },
@@ -124,6 +156,8 @@ describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
   }, 60000);
 
   afterAll(async () => {
+    // Allow pending background audit interceptor inserts to finish
+    await new Promise((resolve) => setTimeout(resolve, 200));
     if (app) {
       await app.close();
     }
@@ -391,6 +425,121 @@ describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
         .expect(200);
 
       expect(res.body.id).toBe(campaignAgencyA);
+    });
+  });
+
+  describe("platform_admin Cross-Agency Lifecycle & Scoping", () => {
+    let platformCreatedCampaignIdAgencyB: string;
+
+    it("platform_admin create with explicit agencyId succeeds (201 Created)", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/v1/campaigns")
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .send({
+          name: "Platform Admin Created Campaign for Agency B",
+          agencyId: agencyB.id,
+        })
+        .expect(201);
+
+      expect(res.body).toHaveProperty("id");
+      expect(res.body.status).toBe(CampaignStatus.DRAFT);
+      platformCreatedCampaignIdAgencyB = res.body.id;
+    });
+
+    it("platform_admin create without agencyId fails with 400 VALIDATION_ERROR", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/v1/campaigns")
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .send({ name: "Platform Admin Missing Agency" })
+        .expect(400);
+
+      expect(res.body.error).toHaveProperty("code", "VALIDATION_ERROR");
+    });
+
+    it("agency_admin create with foreign agencyId in body fails with 403 FORBIDDEN", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/v1/campaigns")
+        .set("Authorization", `Bearer ${adminTokenAgencyA}`)
+        .send({
+          name: "Agency A Admin Attempting Agency B Campaign",
+          agencyId: agencyB.id,
+        })
+        .expect(403);
+
+      expect(res.body.error).toHaveProperty("code", "FORBIDDEN");
+    });
+
+    it("platform_admin list without agencyId query param fails with 400 VALIDATION_ERROR", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/v1/campaigns")
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(400);
+
+      expect(res.body.error).toHaveProperty("code", "VALIDATION_ERROR");
+    });
+
+    it("platform_admin list WITH agencyId query param returns only that agency's campaigns", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/campaigns?agencyId=${agencyB.id}`)
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty("data");
+      expect(res.body.data.length).toBeGreaterThan(0);
+      const found = res.body.data.find(
+        (c: any) => c.id === platformCreatedCampaignIdAgencyB,
+      );
+      expect(found).toBeDefined();
+    });
+
+    it("non-platform_admin role supplying agencyId query param on list has it ignored", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/campaigns?agencyId=${agencyB.id}`)
+        .set("Authorization", `Bearer ${managerTokenAgencyA}`)
+        .expect(200);
+
+      // Agency A manager only sees Agency A campaigns despite agencyId=agencyB.id in query
+      const foundAgencyB = res.body.data.find(
+        (c: any) => c.id === platformCreatedCampaignIdAgencyB,
+      );
+      expect(foundAgencyB).toBeUndefined();
+    });
+
+    it("platform_admin can getById, activate, close, reopen, and analyze a campaign belonging to ANY agency by id alone", async () => {
+      // getById
+      const getRes = await request(app.getHttpServer())
+        .get(`/v1/campaigns/${platformCreatedCampaignIdAgencyB}`)
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(200);
+      expect(getRes.body.id).toBe(platformCreatedCampaignIdAgencyB);
+
+      // activate
+      const activateRes = await request(app.getHttpServer())
+        .patch(`/v1/campaigns/${platformCreatedCampaignIdAgencyB}/activate`)
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(200);
+      expect(activateRes.body.status).toBe(CampaignStatus.ACTIVE);
+
+      // analyze
+      const analyzeRes = await request(app.getHttpServer())
+        .post(`/v1/campaigns/${platformCreatedCampaignIdAgencyB}/analyze`)
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(201);
+      expect(analyzeRes.body.campaignId).toBe(platformCreatedCampaignIdAgencyB);
+
+      // close
+      const closeRes = await request(app.getHttpServer())
+        .patch(`/v1/campaigns/${platformCreatedCampaignIdAgencyB}/close`)
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(200);
+      expect(closeRes.body.status).toBe(CampaignStatus.CLOSED);
+
+      // reopen
+      const reopenRes = await request(app.getHttpServer())
+        .patch(`/v1/campaigns/${platformCreatedCampaignIdAgencyB}/reopen`)
+        .set("Authorization", `Bearer ${platformAdminToken}`)
+        .expect(200);
+      expect(reopenRes.body.status).toBe(CampaignStatus.ACTIVE);
     });
   });
 });
