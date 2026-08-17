@@ -16,6 +16,7 @@ export interface JwtPayload {
   sub: string; // userId
   agencyId: string | null; // null for platform_admin
   role: string;
+  email?: string;
 }
 
 /**
@@ -66,6 +67,7 @@ export class JwtGuard implements CanActivate {
       agencyId: payload.agencyId,
       userId: payload.sub,
       role: payload.role,
+      email: payload.email,
       authType: "jwt",
     });
     (request as Request & { agencyContext: AgencyContext }).agencyContext =

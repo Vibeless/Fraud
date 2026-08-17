@@ -4,6 +4,7 @@ import { DataSource } from "typeorm";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ANALYSIS_QUEUE } from "../../queue/queue.constants";
+import pkgJson from "../../../package.json";
 
 export type DependencyStatus = "ok" | "error";
 
@@ -18,8 +19,6 @@ export interface HealthCheckResponse {
 }
 
 // Read version dynamically from package.json at boot per OAS §11 / Backend Folder Structure §4
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pkgJson = require("../../../package.json");
 const PACKAGE_VERSION: string = pkgJson.version ?? "0.1.0";
 
 @Injectable()

@@ -35,14 +35,15 @@ export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   @Post()
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(AuthGuard, ScopesOrRolesGuard)
   @RequireScopes("submissions:write")
+  @Roles(UserRole.PLATFORM_ADMIN, UserRole.AGENCY_ADMIN, UserRole.CAMPAIGN_MANAGER)
   @AuditAction("submission.created")
   create(
     @Body() dto: CreateSubmissionDto,
     @CurrentAgency() ctx: AgencyContext,
   ) {
-    return this.submissionsService.create(ctx.agencyId, null, dto);
+    return this.submissionsService.create(ctx.agencyId, ctx.userId ?? null, dto);
   }
 
   @Get()
@@ -57,8 +58,9 @@ export class SubmissionsController {
   }
 
   @Get(":id")
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(AuthGuard, ScopesOrRolesGuard)
   @RequireScopes("submissions:read")
+  @Roles(...ALL_DASHBOARD_ROLES)
   findById(
     @Param("id", ParseUUIDPipe) id: string,
     @CurrentAgency() ctx: AgencyContext,
@@ -67,8 +69,9 @@ export class SubmissionsController {
   }
 
   @Get(":id/analysis")
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(AuthGuard, ScopesOrRolesGuard)
   @RequireScopes("analyses:read")
+  @Roles(...ALL_DASHBOARD_ROLES)
   getLatestAnalysis(
     @Param("id", ParseUUIDPipe) id: string,
     @CurrentAgency() ctx: AgencyContext,

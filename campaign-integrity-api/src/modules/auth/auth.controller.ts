@@ -25,6 +25,7 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } }) // brute-force protection — AAD §7
+  @HttpCode(HttpStatus.OK)
   @Post("login")
   async login(@Body() dto: LoginDto, @Req() request: Request) {
     return this.authService.login(dto.email, dto.password, request.ip ?? null);
@@ -32,6 +33,7 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
   @Post("refresh")
   async refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto.refreshToken);
@@ -49,6 +51,6 @@ export class AuthController {
   @UseGuards(JwtGuard)
   @Get("me")
   me(@CurrentAgency() ctx: AgencyContext) {
-    return { id: ctx.userId, role: ctx.role, agencyId: ctx.agencyId };
+    return { id: ctx.userId, email: ctx.email, role: ctx.role, agencyId: ctx.agencyId };
   }
 }

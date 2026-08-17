@@ -82,7 +82,9 @@ export class AppConfigService {
       accessSecret: secret,
       accessTtl: this.config.getOrThrow<number>("JWT_ACCESS_TOKEN_TTL_SECONDS"),
       refreshSecret: secret,
-      refreshTtl: this.config.getOrThrow<number>("JWT_REFRESH_TOKEN_TTL_SECONDS"),
+      refreshTtl: this.config.getOrThrow<number>(
+        "JWT_REFRESH_TOKEN_TTL_SECONDS",
+      ),
     };
   }
 
@@ -98,15 +100,20 @@ export class AppConfigService {
       port: this.config.getOrThrow<number>("PORT"),
       env: this.config.getOrThrow<string>("NODE_ENV"),
       corsOrigins: corsOrigin.split(",").map((origin) => origin.trim()),
-      rateLimitReadPerMinute: this.config.getOrThrow<number>("RATE_LIMIT_READ_PER_MINUTE"),
-      rateLimitSubmitPerMinute: this.config.getOrThrow<number>("RATE_LIMIT_SUBMIT_PER_MINUTE"),
+      rateLimitReadPerMinute: this.config.getOrThrow<number>(
+        "RATE_LIMIT_READ_PER_MINUTE",
+      ),
+      rateLimitSubmitPerMinute: this.config.getOrThrow<number>(
+        "RATE_LIMIT_SUBMIT_PER_MINUTE",
+      ),
     };
   }
 
   get xApi(): XApiConfig {
     return {
       bearerToken: this.config.get<string>("X_API_BEARER_TOKEN") ?? "",
-      baseUrl: this.config.get<string>("X_API_BASE_URL") ?? "https://api.twitter.com",
+      baseUrl:
+        this.config.get<string>("X_API_BASE_URL") ?? "https://api.twitter.com",
     };
   }
 }

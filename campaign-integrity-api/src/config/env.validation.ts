@@ -32,7 +32,14 @@ class EnvironmentVariables {
   CORS_ORIGIN!: string;
 
   // --- Database (DATABASE_URL or discrete fields) ---
-  @ValidateIf((o) => !o.DB_HOST && !o.DB_PORT && !o.DB_USERNAME && !o.DB_PASSWORD && !o.DB_NAME)
+  @ValidateIf(
+    (o) =>
+      !o.DB_HOST &&
+      !o.DB_PORT &&
+      !o.DB_USERNAME &&
+      !o.DB_PASSWORD &&
+      !o.DB_NAME,
+  )
   @IsString()
   @IsNotEmpty()
   DATABASE_URL?: string;
