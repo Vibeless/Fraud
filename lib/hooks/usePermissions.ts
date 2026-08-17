@@ -19,6 +19,7 @@ export interface PermissionsResult {
   canManageSettings: boolean;
   canManageApiKeys: boolean;
   canManageUsers: boolean;
+  canSubmitPost: boolean;
 }
 
 /**
@@ -55,6 +56,10 @@ export function usePermissions(customUser?: UserSession | string | null): Permis
     role && (isPlatformAdmin || isAgencyAdmin)
   );
 
+  const canSubmitPost = Boolean(
+    role && (isPlatformAdmin || isAgencyAdmin || isCampaignManager)
+  );
+
   return {
     role,
     loading: customUser !== undefined ? false : loading,
@@ -64,5 +69,6 @@ export function usePermissions(customUser?: UserSession | string | null): Permis
     canManageSettings,
     canManageApiKeys: canManageSettings,
     canManageUsers: canManageSettings,
+    canSubmitPost,
   };
 }
