@@ -21,6 +21,7 @@ import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { ListSubmissionsQueryDto } from "./dto/list-submissions-query.dto";
 import { parseXPostId } from "./x-post-url.util";
 import { ErrorCode } from "../../common/filters/api-error";
+import { CampaignsService } from "../campaigns/campaigns.service";
 
 @Injectable()
 export class SubmissionsService {
@@ -32,6 +33,7 @@ export class SubmissionsService {
     private readonly findings: Repository<FindingEntity>,
     private readonly analysisProducer: AnalysisProducer,
     private readonly evidenceGenerator: EvidenceGeneratorService,
+    private readonly campaignsService: CampaignsService,
   ) {}
 
   /** POST /v1/submissions — OAS §5. Returns 201 immediately; analysis runs async. */
@@ -52,6 +54,13 @@ export class SubmissionsService {
           message: "externalSubmissionId already used by this agency.",
         });
       }
+    }
+
+    if (dto.campaignId) {
+      await this.campaignsService.ensureCampaignAcceptsSubmissions(
+        agencyId,
+        dto.campaignId,
+      );
     }
 
     const submission = await this.submissions.save(

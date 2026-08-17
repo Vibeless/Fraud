@@ -90,8 +90,23 @@ Optional reference to the agency's own campaign, used to group submissions.
 | agency_id               | UUID (FK -\> agencies.id) |                                      |
 | external_campaign_id    | VARCHAR(255), nullable    | The agency's own campaign identifier |
 | name                    | VARCHAR(255)              |                                      |
-| status                  | ENUM(active, closed)      |                                      |
+| status                  | ENUM(draft, active, closed)| Draft on create; active -> closed lifecycle |
 | created_at / updated_at | TIMESTAMPTZ               |                                      |
+
+#### campaign_analyses
+
+Aggregated analysis snapshot across a campaign's submissions. Distinct from the per-submission `analyses` table. Sequential versioning per campaign; append-only audit trail.
+
+| **Field**      | **Type**                                           | **Notes**                                     |
+|----------------|----------------------------------------------------|-----------------------------------------------|
+| id             | UUID (PK)                                          |                                               |
+| campaign_id    | UUID (FK -> campaigns.id)                          | Cascade delete with campaign                  |
+| version        | INTEGER                                            | Incrementing version per campaign (1, 2, ...) |
+| status         | ENUM(pending, completed, failed, stale)            | Marked stale upon campaign reopen             |
+| trigger        | ENUM(manual, campaign_closed)                      | What initiated this analysis run              |
+| is_stale       | BOOLEAN                                            | Default false; set true on campaign reopen    |
+| created_at     | TIMESTAMPTZ                                        |                                               |
+| completed_at   | TIMESTAMPTZ, nullable                              |                                               |
 
 #### creators
 
@@ -204,6 +219,7 @@ Immutable log of security-relevant and operational events (FR-010).
 | submissions | analyses         | 1..N            | Supports re-analysis                       |
 | analyses    | findings         | 1..N            |                                            |
 | agencies    | audit_logs       | 1..N            | Nullable for platform-level events         |
+| campaigns   | campaign_analyses| 1..N            | Versioned sequential campaign analyses     |
 
 ## 6. Indexing Strategy
 

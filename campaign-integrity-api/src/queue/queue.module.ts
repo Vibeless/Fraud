@@ -17,14 +17,17 @@ export { ANALYSIS_QUEUE };
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => {
         const redisConfig = config.redis;
-        if (redisConfig.url) {
-          return { connection: { url: redisConfig.url } };
-        }
+        const base = redisConfig.url
+          ? { url: redisConfig.url }
+          : {
+              host: redisConfig.host,
+              port: redisConfig.port,
+              password: redisConfig.password,
+            };
         return {
           connection: {
-            host: redisConfig.host,
-            port: redisConfig.port,
-            password: redisConfig.password,
+            ...base,
+            maxRetriesPerRequest: null,
           },
         };
       },

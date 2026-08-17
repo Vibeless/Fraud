@@ -10,7 +10,16 @@ import {
 } from "typeorm";
 import { Agency } from "./agency.entity";
 
+/**
+ * DELIBERATE DEVIATION FROM DDS §4:
+ * The DDS §4 specification documents `ENUM(active, closed)` for campaign status.
+ * This module introduces a three-state lifecycle: DRAFT -> ACTIVE -> CLOSED,
+ * keeping draft state separate from submission-level AnalysisStatus.
+ * Default status on creation is DRAFT.
+ * NOTE: Corresponding documentation update in DDS §4 is required on docs side.
+ */
 export enum CampaignStatus {
+  DRAFT = "draft",
   ACTIVE = "active",
   CLOSED = "closed",
 }
@@ -38,7 +47,7 @@ export class Campaign {
   @Column({
     type: "enum",
     enum: CampaignStatus,
-    default: CampaignStatus.ACTIVE,
+    default: CampaignStatus.DRAFT,
   })
   status!: CampaignStatus;
 

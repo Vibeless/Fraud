@@ -6,12 +6,14 @@ import { SubmissionsService } from "./submissions.service";
 import { Analysis, Finding, Submission } from "../../database/entities";
 import { QueueModule } from "../../queue/queue.module";
 import { DetectionModule } from "../detection/detection.module";
+import { CampaignsModule } from "../campaigns/campaigns.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Submission, Analysis, Finding]),
     QueueModule,
     DetectionModule,
+    CampaignsModule,
   ],
   controllers: [SubmissionsController, AnalysesController],
   providers: [SubmissionsService],
