@@ -137,6 +137,9 @@ One X post submitted for analysis (FR-001).
 | x_post_id               | VARCHAR(64)                                                     | Parsed from the URL             |
 | status                  | ENUM(pending, validating, queued, analyzing, completed, failed) | Pipeline status (DES Stage 1-2) |
 | idempotency_key         | VARCHAR(255), nullable, unique per agency                       | Prevents duplicate submissions  |
+| reviewer_note           | TEXT, nullable                                                  | Optional reviewer commentary (DUXS §4.3) |
+| reviewed_by             | UUID (FK -> users.id), nullable                                 | Reviewer user ID (DUXS §4.3)    |
+| reviewed_at             | TIMESTAMPTZ, nullable                                           | Timestamp when marked reviewed  |
 | created_at / updated_at | TIMESTAMPTZ                                                     |                                 |
 
 #### x_data_snapshots
@@ -215,6 +218,7 @@ Immutable log of security-relevant and operational events (FR-010).
 | campaigns   | submissions      | 1..N            | Optional — campaign_id nullable            |
 | creators    | submissions      | 1..N            | Resolved after data collection             |
 | users       | submissions      | 1..N            | submitted_by, nullable for API submissions |
+| users       | submissions      | 1..N            | reviewed_by, reviewer note attribution     |
 | submissions | x_data_snapshots | 1..N            | Typically 1, more on re-collection         |
 | submissions | analyses         | 1..N            | Supports re-analysis                       |
 | analyses    | findings         | 1..N            |                                            |

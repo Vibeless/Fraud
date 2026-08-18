@@ -14,6 +14,10 @@ import { SubmissionStatus } from "../../../database/entities/submission.entity";
 /** Query params for GET /v1/submissions — OAS §6. */
 export class ListSubmissionsQueryDto {
   @IsOptional()
+  @IsUUID()
+  agencyId?: string;
+
+  @IsOptional()
   @IsEnum(SubmissionStatus)
   status?: SubmissionStatus;
 

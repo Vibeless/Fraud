@@ -83,6 +83,19 @@ export class Submission {
   @Column({ type: "varchar", length: 255, nullable: true })
   idempotencyKey!: string | null;
 
+  @Column({ type: "text", nullable: true })
+  reviewerNote!: string | null;
+
+  @Column({ type: "uuid", nullable: true })
+  reviewedBy!: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "reviewedBy" })
+  reviewedByUser?: User;
+
+  @Column({ type: "timestamptz", nullable: true })
+  reviewedAt!: Date | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

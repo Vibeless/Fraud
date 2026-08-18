@@ -77,6 +77,9 @@ Because rules directly affect Risk Scores shown to agencies, a rule/\* PR requir
 
 - A recorded rule_version bump, so any Risk Score produced after the change is traceable to the exact rule set that produced it (Database Design Specification §7).
 
+> **Single-Contributor Project Note (as of August 2026):**
+> The "second reviewer approval from someone with Detection Engine context" requirement is currently unenforceable via GitHub branch protection for a single-contributor project. The Rule Library Specification (RLS) §9 test matrix (positive, negative, and boundary cases, passing with no exceptions) serves as the primary automated safety net for all detection rule changes until/unless a second reviewer is available. This test requirement remains strictly mandatory and must never be bypassed or weakened.
+
 ## 8. Production Release
 ```
 Tag vX.Y.Z on main

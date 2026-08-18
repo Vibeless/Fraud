@@ -6,6 +6,7 @@ export {
   getSubmission,
   listSubmissions,
   getLatestAnalysis,
+  reviewSubmission,
 } from './submissions';
 
 export type {
@@ -15,7 +16,29 @@ export type {
   Pagination,
   PaginatedSubmissionsResponse,
   CreateSubmissionParams,
+  ReviewSubmissionParams,
   ListSubmissionsParams,
   EvidenceItem,
+  CreatorContext,
   AnalysisResponse,
 } from './submissions';
+
+export {
+  createCampaign,
+  listCampaigns,
+  getCampaign,
+  activateCampaign,
+  closeCampaign,
+  reopenCampaign,
+  analyzeCampaign,
+} from './campaigns';
+
+export type {
+  Campaign,
+  CampaignStatus,
+  PaginatedCampaignsResponse,
+  CreateCampaignParams,
+  ListCampaignsParams,
+  CampaignAnalysisResult,
+} from './campaigns';
+

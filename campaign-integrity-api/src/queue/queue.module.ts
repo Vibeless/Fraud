@@ -1,5 +1,6 @@
-import { Module } from "@nestjs/common";
-import { BullModule } from "@nestjs/bullmq";
+import { Module, OnApplicationShutdown } from "@nestjs/common";
+import { BullModule, InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
 import { AppConfigModule } from "../config/config.module";
 import { AppConfigService } from "../config/app-config.service";
 import { AnalysisProcessor } from "./processors/analysis.processor";
@@ -28,6 +29,7 @@ export { ANALYSIS_QUEUE };
           connection: {
             ...base,
             maxRetriesPerRequest: null,
+            enableOfflineQueue: false,
           },
         };
       },
@@ -38,4 +40,14 @@ export { ANALYSIS_QUEUE };
   providers: [AnalysisProcessor, AnalysisProducer],
   exports: [AnalysisProducer],
 })
-export class QueueModule {}
+export class QueueModule implements OnApplicationShutdown {
+  constructor(@InjectQueue(ANALYSIS_QUEUE) private readonly queue: Queue) {}
+
+  async onApplicationShutdown() {
+    try {
+      await this.queue.close();
+    } catch {
+      // ignore
+    }
+  }
+}

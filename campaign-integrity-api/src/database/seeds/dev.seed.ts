@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import * as argon2 from "argon2";
+import { hashSecret } from "../../common/crypto/argon2.util";
 import * as dotenv from "dotenv";
 import dataSource from "../data-source";
 import { Agency, AgencyStatus, User, UserRole, UserStatus } from "../entities";
@@ -126,12 +126,12 @@ export async function seedDevData(): Promise<void> {
       where: { email: userDef.email },
     });
 
-    if (!existingUser) {
-      // Hash password independently per user row using exact Argon2id algorithm
-      const passwordHash = await argon2.hash(DEV_SEED_PASSWORD, {
-        type: argon2.argon2id,
-      });
+    const passwordHash = await hashSecret(
+      DEV_SEED_PASSWORD,
+      process.env.ARGON2_PEPPER,
+    );
 
+    if (!existingUser) {
       const user = userRepo.create({
         email: userDef.email,
         role: userDef.role,
@@ -142,16 +142,21 @@ export async function seedDevData(): Promise<void> {
       });
 
       await userRepo.save(user);
+
       summaryResults.push({
-        Email: user.email,
-        Role: user.role,
+        Email: userDef.email,
+        Role: userDef.role,
         Status: "Created",
       });
     } else {
+      existingUser.passwordHash = passwordHash;
+      existingUser.status = UserStatus.ACTIVE;
+      await userRepo.save(existingUser);
+
       summaryResults.push({
-        Email: existingUser.email,
-        Role: existingUser.role,
-        Status: "Existing (Skipped)",
+        Email: userDef.email,
+        Role: userDef.role,
+        Status: "Updated",
       });
     }
   }

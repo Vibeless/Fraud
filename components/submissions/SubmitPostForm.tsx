@@ -7,14 +7,15 @@ import { createSubmission, Submission } from '@/lib/api-client/submissions';
 import { ApiClientError } from '@/lib/api-client';
 
 export interface SubmitPostFormProps {
+  initialCampaignId?: string;
   onSuccess?: (submission: Submission) => void;
   onCancel?: () => void;
 }
 
-export function SubmitPostForm({ onSuccess, onCancel }: SubmitPostFormProps) {
+export function SubmitPostForm({ initialCampaignId = '', onSuccess, onCancel }: SubmitPostFormProps) {
   const permissions = usePermissions();
   const [postUrl, setPostUrl] = useState('');
-  const [campaignId, setCampaignId] = useState('');
+  const [campaignId, setCampaignId] = useState(initialCampaignId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);

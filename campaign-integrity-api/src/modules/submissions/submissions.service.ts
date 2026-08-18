@@ -19,9 +19,11 @@ import { EvidenceGeneratorService } from "../detection/evidence/evidence-generat
 import { Finding } from "../detection/finding.types";
 import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { ListSubmissionsQueryDto } from "./dto/list-submissions-query.dto";
+import { ReviewSubmissionDto } from "./dto/review-submission.dto";
 import { parseXPostId } from "./x-post-url.util";
 import { ErrorCode } from "../../common/filters/api-error";
 import { CampaignsService } from "../campaigns/campaigns.service";
+import { CreatorHistoryService } from "../intelligence/creator-history.service";
 
 @Injectable()
 export class SubmissionsService {
@@ -34,6 +36,7 @@ export class SubmissionsService {
     private readonly analysisProducer: AnalysisProducer,
     private readonly evidenceGenerator: EvidenceGeneratorService,
     private readonly campaignsService: CampaignsService,
+    private readonly creatorHistoryService: CreatorHistoryService,
   ) {}
 
   /** POST /v1/submissions — OAS §5. Returns 201 immediately; analysis runs async. */
@@ -81,8 +84,10 @@ export class SubmissionsService {
   }
 
   /** GET /v1/submissions/{id} — OAS §5. */
-  async findById(agencyId: string, id: string) {
-    const submission = await this.findScoped({ id, agencyId });
+  async findById(agencyId: string | null, id: string) {
+    const submission = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
     const latest = await this.analyses.findOne({
       where: { submissionId: submission.id },
       order: { createdAt: "DESC" },
@@ -133,9 +138,43 @@ export class SubmissionsService {
     };
   }
 
+  /** PATCH /v1/submissions/{id}/review — DUXS §4.3 & OAS §5 */
+  async review(
+    agencyId: string | null,
+    userId: string,
+    id: string,
+    dto: ReviewSubmissionDto,
+  ) {
+    const submission = await this.findScoped(
+      agencyId !== null ? { id, agencyId } : { id },
+    );
+
+    if (dto.reviewerNote !== undefined) {
+      submission.reviewerNote = dto.reviewerNote;
+    }
+
+    if (dto.markReviewed) {
+      submission.reviewedBy = userId;
+      submission.reviewedAt = new Date();
+    }
+
+    const updated = await this.submissions.save(submission);
+
+    return {
+      id: updated.id,
+      status: updated.status,
+      reviewerNote: updated.reviewerNote,
+      reviewedBy: updated.reviewedBy,
+      reviewedAt: updated.reviewedAt,
+      updatedAt: updated.updatedAt,
+    };
+  }
+
   /** GET /v1/submissions/{id}/analysis — OAS §5, the primary result endpoint. */
-  async getLatestAnalysis(agencyId: string, submissionId: string) {
-    const submission = await this.findScoped({ id: submissionId, agencyId });
+  async getLatestAnalysis(agencyId: string | null, submissionId: string) {
+    const submission = await this.findScoped(
+      agencyId !== null ? { id: submissionId, agencyId } : { id: submissionId },
+    );
     const latest = await this.analyses.findOne({
       where: { submissionId: submission.id },
       order: { createdAt: "DESC" },
@@ -148,7 +187,7 @@ export class SubmissionsService {
       });
     }
 
-    return this.toPublicAnalysis(latest);
+    return this.toPublicAnalysis(latest, submission);
   }
 
   /** GET /v1/analyses/{id} — OAS §5, retrieves a specific (possibly historical) analysis. */
@@ -161,9 +200,12 @@ export class SubmissionsService {
       });
     }
     // agency-scope via the parent submission — an analysis has no agencyId of its own
-    await this.findScoped({ id: analysis.submissionId, agencyId });
+    const submission = await this.findScoped({
+      id: analysis.submissionId,
+      agencyId,
+    });
 
-    return this.toPublicAnalysis(analysis);
+    return this.toPublicAnalysis(analysis, submission);
   }
 
   private async findScoped(
@@ -185,12 +227,18 @@ export class SubmissionsService {
       status: s.status,
       postUrl: s.xPostUrl,
       campaignId: s.campaignId,
+      reviewerNote: s.reviewerNote ?? null,
+      reviewedBy: s.reviewedBy ?? null,
+      reviewedAt: s.reviewedAt ?? null,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
     };
   }
 
-  private async toPublicAnalysis(analysis: Analysis) {
+  private async toPublicAnalysis(
+    analysis: Analysis,
+    submission?: Submission,
+  ) {
     if (analysis.status === AnalysisStatus.FAILED) {
       throw new UnprocessableEntityException({
         code: ErrorCode.ANALYSIS_FAILED,
@@ -214,12 +262,26 @@ export class SubmissionsService {
       isInternalOnly: f.isInternalOnly,
     }));
 
+    let creatorContext = null;
+    if (submission && submission.creatorId) {
+      creatorContext = await this.creatorHistoryService.getCreatorContext(
+        submission.creatorId,
+        submission.agencyId,
+        submission.id,
+      );
+    }
+
     return {
       analysisId: analysis.id,
       submissionId: analysis.submissionId,
       riskScore: analysis.riskScore,
       riskLevel: analysis.riskLevel as RiskLevel,
+      riskSummary: this.evidenceGenerator.generateSummary(
+        analysis.riskLevel,
+        findings,
+      ),
       evidence: this.evidenceGenerator.generate(findings),
+      creatorContext,
       analysisVersion: analysis.analysisVersion,
       analyzedAt: analysis.completedAt,
     };

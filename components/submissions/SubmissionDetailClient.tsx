@@ -2,7 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Submission, AnalysisResponse } from '@/lib/api-client/submissions';
+import {
+  Submission,
+  AnalysisResponse,
+  reviewSubmission,
+} from '@/lib/api-client/submissions';
 import { RiskScoreBadge, RiskLevel } from '@/components/risk/RiskScoreBadge';
 import { EvidenceList } from '@/components/risk/EvidenceList';
 import { RiskExplainerPanel } from '@/components/risk/RiskExplainerPanel';
@@ -48,41 +52,6 @@ function formatDate(dateStr: string): string {
   }
 }
 
-/**
- * Derives a human-readable one-line summary sentence from riskLevel and evidence categories.
- *
- * NOTE: The backend API does not currently return a composite summary sentence field on
- * GET /v1/submissions/{id}/analysis, so this is derived client-side.
- */
-function generateOneLineRiskSummary(
-  riskLevel?: RiskLevel | string | null,
-  analysis?: AnalysisResponse | null
-): string {
-  if (!riskLevel || !analysis) {
-    return 'Analysis pending or not yet completed for this submission.';
-  }
-
-  const level = (riskLevel.toLowerCase() as RiskLevel) || 'low';
-  const categories = Array.from(new Set(analysis.evidence?.map((e) => e.category.toLowerCase()) || []));
-
-  switch (level) {
-    case 'critical':
-      return categories.length > 0
-        ? `Critical risk — high concentration of anomalous signals detected in ${categories.slice(0, 2).join(' and ')}.`
-        : 'Critical risk level assigned — see evidence below for details.';
-    case 'high':
-      return categories.length > 0
-        ? `High risk — significant anomalies identified in ${categories.slice(0, 2).join(' and ')}.`
-        : 'High risk level assigned — see evidence below for details.';
-    case 'moderate':
-      return categories.length > 0
-        ? `Moderate risk — minor irregularities detected in ${categories.slice(0, 2).join(' and ')}.`
-        : 'Moderate risk level assigned — reviewer inspection recommended.';
-    case 'low':
-    default:
-      return 'Low risk level assigned — engagement signals appear consistent.';
-  }
-}
 
 export function SubmissionDetailClient({
   submission,
@@ -90,10 +59,13 @@ export function SubmissionDetailClient({
   onRetry,
 }: SubmissionDetailClientProps) {
   const [isExplainerOpen, setIsExplainerOpen] = useState(false);
-  const [reviewerNote, setReviewerNote] = useState('');
-  const [isReviewed, setIsReviewed] = useState(false);
-  const [isRetrying, setIsRetrying] = useState(false);
+  const [reviewerNote, setReviewerNote] = useState(submission.reviewerNote || '');
+  const [isReviewed, setIsReviewed] = useState(Boolean(submission.reviewedAt || submission.reviewedBy));
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [saveNoteError, setSaveNoteError] = useState<string | null>(null);
   const [noteSavedFeedback, setNoteSavedFeedback] = useState(false);
+  const [reviewedAt, setReviewedAt] = useState<string | null>(submission.reviewedAt || null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const creatorHandle = parseCreatorHandle(submission.postUrl);
   const postId = parsePostId(submission.postUrl);
@@ -101,11 +73,33 @@ export function SubmissionDetailClient({
   const isAnalyzing = submission.status === 'analyzing' || submission.status === 'validating';
   const isQueued = submission.status === 'queued' || submission.status === 'pending';
 
-  const handleSaveNote = (e: React.FormEvent) => {
+  const handleSaveNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    // UI state only — backend note persistence endpoint is pending
-    setNoteSavedFeedback(true);
-    setTimeout(() => setNoteSavedFeedback(false), 3000);
+    if (isSavingNote) return;
+
+    setIsSavingNote(true);
+    setSaveNoteError(null);
+
+    try {
+      const updated = await reviewSubmission(submission.id, {
+        reviewerNote: reviewerNote.trim(),
+        markReviewed: isReviewed,
+      });
+
+      // Update state strictly from server truth
+      setReviewerNote(updated.reviewerNote || '');
+      setIsReviewed(Boolean(updated.reviewedAt || updated.reviewedBy));
+      setReviewedAt(updated.reviewedAt || null);
+
+      setNoteSavedFeedback(true);
+      setTimeout(() => setNoteSavedFeedback(false), 4000);
+    } catch (err: unknown) {
+      setSaveNoteError(
+        err instanceof Error ? err.message : 'Failed to save reviewer note.'
+      );
+    } finally {
+      setIsSavingNote(false);
+    }
   };
 
   const handleRetryClick = async () => {
@@ -120,14 +114,16 @@ export function SubmissionDetailClient({
 
   const riskLevel = analysis?.riskLevel || submission.riskLevel;
   const riskScore = analysis?.riskScore ?? submission.riskScore;
-  const oneLineSummary = generateOneLineRiskSummary(riskLevel, analysis);
+  const riskSummary = analysis?.riskSummary;
+  const isPendingAnalysis = isAnalyzing || isQueued || (!analysis && !isFailed);
+  const creatorContext = analysis?.creatorContext;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Top Navigation & Breadcrumb */}
       <div className="flex items-center justify-between">
         <Link
-          href="/submissions"
+          href="/"
           className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -271,9 +267,20 @@ export function SubmissionDetailClient({
 
               {/* Plain-Language One-Line Summary */}
               <div>
-                <p className="text-sm font-medium text-slate-800 leading-relaxed">
-                  {oneLineSummary}
-                </p>
+                {isPendingAnalysis ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                    <div className="h-3.5 w-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin flex-shrink-0" />
+                    <span>Analyzing signals…</span>
+                  </div>
+                ) : riskSummary ? (
+                  <p className="text-sm font-medium text-slate-800 leading-relaxed">
+                    {riskSummary}
+                  </p>
+                ) : (
+                  <p className="text-xs italic text-slate-400 font-normal">
+                    Summary unavailable
+                  </p>
+                )}
                 {analysis?.analysisVersion && (
                   <p className="mt-1 text-[11px] text-slate-400 font-mono">
                     Engine: {analysis.analysisVersion} • Analyzed at {formatDate(analysis.analyzedAt)}
@@ -309,6 +316,19 @@ export function SubmissionDetailClient({
                 </label>
               </div>
 
+              {saveNoteError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center justify-between">
+                  <span>{saveNoteError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSaveNoteError(null)}
+                    className="text-red-500 hover:text-red-700 font-bold ml-2"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               <form onSubmit={handleSaveNote} className="space-y-3">
                 <div>
                   <label htmlFor="reviewer-note" className="block text-xs font-medium text-slate-600 mb-1">
@@ -324,17 +344,25 @@ export function SubmissionDetailClient({
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
                   <span className="text-[11px] text-slate-400">
-                    * Note: Reviewer notes and status are not fed back into scoring in MVP.
+                    {reviewedAt
+                      ? `Last reviewed on ${formatDate(reviewedAt)}`
+                      : '* Note: Reviewer notes and status are not fed back into scoring in MVP.'}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
                     {noteSavedFeedback && (
                       <span className="text-xs font-medium text-emerald-600 animate-in fade-in">
-                        Note saved locally!
+                        Note saved successfully!
                       </span>
                     )}
-                    <Button type="submit" variant="secondary" size="sm">
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      size="sm"
+                      isLoading={isSavingNote}
+                      disabled={isSavingNote}
+                    >
                       Save Note
                     </Button>
                   </div>
@@ -387,20 +415,52 @@ export function SubmissionDetailClient({
                   Context Only
                 </span>
               </div>
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Author Handle</span>
-                  <span className="font-semibold text-slate-900">{creatorHandle}</span>
+
+              {!creatorContext ? (
+                <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-center py-6">
+                  <p className="text-xs font-medium text-slate-700">Creator information pending</p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Creator identity and account metrics are being resolved in the background.
+                  </p>
                 </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500">Prior Agency Submissions</span>
-                  <span className="font-medium text-slate-700">Historical data</span>
+              ) : (
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500">Author Handle</span>
+                    <span className="font-semibold text-slate-900">{creatorHandle}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500">Account Age</span>
+                    <span className="font-medium text-slate-800">
+                      {creatorContext.accountAgeSummary || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500">Follower Count</span>
+                    <span className="font-semibold text-slate-900">
+                      {creatorContext.followerCount !== null && creatorContext.followerCount !== undefined
+                        ? creatorContext.followerCount.toLocaleString()
+                        : 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500">Prior Submissions</span>
+                    <span className="font-medium text-slate-800">
+                      {creatorContext.priorSubmissionsCount ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-slate-500">Prior Avg Risk Score</span>
+                    <span className="font-medium text-slate-800">
+                      {creatorContext.priorSubmissionsAvgRiskScore !== null &&
+                      creatorContext.priorSubmissionsAvgRiskScore !== undefined
+                        ? `${Math.round(creatorContext.priorSubmissionsAvgRiskScore)} / 100`
+                        : 'No prior submissions'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-slate-500">Verification Source</span>
-                  <span className="font-medium text-slate-700">Detection Engine</span>
-                </div>
-              </div>
+              )}
+
               <p className="text-[11px] text-slate-400 pt-1 leading-normal">
                 Creator history is shown as contextual background for the reviewer, not as a direct score modifier.
               </p>

@@ -135,6 +135,7 @@ This is the primary result endpoint. It returns exactly the fields an agency nee
 "submissionId": "b6b1...c2",
 "riskScore": 72,
 "riskLevel": "high", // low | moderate | high | critical
+"riskSummary": "High risk — signs of artificial engagement velocity and patterns.",
 "evidence": [
 {
 "category": "engagement",
@@ -148,7 +149,13 @@ This is the primary result endpoint. It returns exactly the fields an agency nee
 }
 ],
 "analysisVersion": "engine-1.4.0+rules-2026.07",
-"analyzedAt": "2026-08-01T14:32:41Z"
+"analyzedAt": "2026-08-01T14:32:41Z",
+"creatorContext": {
+"accountAgeSummary": "Account created 3 years ago",
+"followerCount": 12500,
+"priorSubmissionsCount": 2,
+"priorSubmissionsAvgRiskScore": 42
+}
 }
 ```
 #### Error Responses
@@ -170,6 +177,43 @@ Used to retrieve a historical analysis after re-analysis has produced a newer on
 #### Response
 
 200 OK — same schema as GET /v1/submissions/{id}/analysis
+
+| **PATCH** | **/v1/submissions/{id}/review** |
+|-----------|---------------------------------|
+
+#### Persist reviewer notes and mark a submission reviewed (DUXS §4.3).
+
+**Auth:** Dashboard JWT only (agency_admin, fraud_reviewer)
+
+#### Request Body
+```
+{
+"reviewerNote": "Spike in new accounts looks inorganic. Flagged for agency lead.",
+"markReviewed": true
+}
+```
+
+#### Response
+```
+200 OK
+{
+"id": "b6b1...c2",
+"status": "completed",
+"reviewerNote": "Spike in new accounts looks inorganic. Flagged for agency lead.",
+"reviewedBy": "u123...45",
+"reviewedAt": "2026-08-17T12:00:00Z",
+"updatedAt": "2026-08-17T12:00:00Z"
+}
+```
+
+#### Error Responses
+
+| **Status** | **Code**         | **Meaning**                                             |
+|------------|------------------|---------------------------------------------------------|
+| 400        | VALIDATION_ERROR | Request body validation failed                          |
+| 401        | UNAUTHORIZED     | Missing or invalid dashboard session token              |
+| 403        | FORBIDDEN        | Caller does not have fraud_reviewer or agency_admin role|
+| 404        | NOT_FOUND        | Submission not found for caller's agency                |
 
 ## 6. Listing & Filtering (Dashboard + API)
 
@@ -196,34 +240,178 @@ Query params: status, riskLevel, campaignId, dateFrom, dateTo, page, pageSize
 | **POST** | **/v1/campaigns** |
 |----------|-------------------|
 
-#### Create a campaign reference used to group submissions.
+#### Create a campaign reference used to group submissions (starts in status: "draft").
 
-**Auth:** API key or dashboard JWT
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
 
 #### Request Body
-```
+```json
 {
-"name": "Q3 Ambassador Drop",
-"externalCampaignId": "camp-42" // optional
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42"
 }
 ```
 #### Response
-```
+```json
 201 Created
-{ "id": "...", "name": "Q3 Ambassador Drop", "status": "active", "createdAt": "..." }
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "draft",
+  "submissionCount": 0,
+  "averageRiskScore": null,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T10:00:00Z"
+}
 ```
+
 | **GET** | **/v1/campaigns** |
 |---------|-------------------|
 
-#### List campaigns for the caller’s agency.
+#### List campaigns for the caller’s agency, with aggregate metrics (DUXS §4.4).
 
-**Auth:** API key or dashboard JWT
+**Auth:** API key (`campaigns:read`) or dashboard JWT
+
+#### Query Parameters
+- `status` (optional): `draft` | `active` | `closed`
+- `agencyId` (required for `platform_admin` cross-agency queries)
+- `page` (default: 1)
+- `pageSize` (default: 25)
 
 #### Response
-```
+```json
 200 OK
-{ "data": [ { "id": "...", "name": "...", "status": "active" } ], "pagination": { ... } }
+{
+  "data": [
+    {
+      "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+      "name": "Q3 Ambassador Drop",
+      "externalCampaignId": "camp-42",
+      "status": "active",
+      "submissionCount": 42,
+      "averageRiskScore": 60,
+      "createdAt": "2026-08-01T10:00:00Z",
+      "updatedAt": "2026-08-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "pageSize": 25
+  }
+}
 ```
+
+| **GET** | **/v1/campaigns/{id}** |
+|---------|------------------------|
+
+#### Get a single campaign by ID with aggregate metrics.
+
+**Auth:** API key (`campaigns:read`) or dashboard JWT
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "active",
+  "submissionCount": 42,
+  "averageRiskScore": 60,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T10:00:00Z"
+}
+```
+
+| **PATCH** | **/v1/campaigns/{id}/activate** |
+|-----------|---------------------------------|
+
+#### Activate a draft campaign (draft -> active).
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "active",
+  "submissionCount": 0,
+  "averageRiskScore": null,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T10:15:00Z"
+}
+```
+
+| **PATCH** | **/v1/campaigns/{id}/close** |
+|-----------|------------------------------|
+
+#### Close an active campaign (active -> closed), locking submissions and queueing final analysis.
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "closed",
+  "submissionCount": 42,
+  "averageRiskScore": 60,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T12:00:00Z"
+}
+```
+
+| **PATCH** | **/v1/campaigns/{id}/reopen** |
+|-----------|-------------------------------|
+
+#### Reopen a closed campaign (closed -> active), marking previous analyses stale and allowing submissions.
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "active",
+  "submissionCount": 42,
+  "averageRiskScore": 60,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T13:00:00Z"
+}
+```
+
+| **POST** | **/v1/campaigns/{id}/analyze** |
+|----------|--------------------------------|
+
+#### Manually trigger an asynchronous campaign analysis on an active campaign.
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+201 Created
+{
+  "campaignId": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "analysisId": "e5f2780e-3b2d-45f8-8a89-299f0e1590df",
+  "version": 1,
+  "status": "pending",
+  "trigger": "manual",
+  "createdAt": "2026-08-01T10:30:00Z"
+}
+```
+
+
 ## 8. Authentication (Dashboard)
 
 | **POST** | **/v1/auth/login** |

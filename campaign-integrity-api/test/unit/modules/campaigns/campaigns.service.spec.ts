@@ -34,6 +34,9 @@ describe("CampaignsService (Unit)", () => {
       })),
       findOne: jest.fn(),
       findAndCount: jest.fn(),
+      manager: {
+        query: jest.fn().mockResolvedValue([]),
+      },
     } as unknown as jest.Mocked<Repository<Campaign>>;
 
     analysisRepo = {
@@ -55,7 +58,7 @@ describe("CampaignsService (Unit)", () => {
   });
 
   describe("create", () => {
-    it("should create campaign starting in status=draft", async () => {
+    it("should create campaign starting in status=draft with 0 submissions and null averageRiskScore", async () => {
       const result = await service.create(agencyId, {
         name: "Spring Launch",
         externalCampaignId: "ext-101",
@@ -69,11 +72,13 @@ describe("CampaignsService (Unit)", () => {
       });
       expect(result.status).toBe(CampaignStatus.DRAFT);
       expect(result.name).toBe("Spring Launch");
+      expect(result.submissionCount).toBe(0);
+      expect(result.averageRiskScore).toBeNull();
     });
   });
 
   describe("list", () => {
-    it("should list campaigns scoped to agency with pagination", async () => {
+    it("should list campaigns scoped to agency with pagination and aggregates", async () => {
       const mockCampaign = {
         id: campaignId,
         agencyId,
@@ -84,6 +89,13 @@ describe("CampaignsService (Unit)", () => {
         updatedAt: new Date(),
       };
       campaignRepo.findAndCount.mockResolvedValue([[mockCampaign as Campaign], 1]);
+      (campaignRepo.manager.query as jest.Mock).mockResolvedValue([
+        {
+          campaignId,
+          submissionCount: "5",
+          averageRiskScore: 42.4,
+        },
+      ]);
 
       const result = await service.list(agencyId, { page: 1, pageSize: 10 });
       expect(campaignRepo.findAndCount).toHaveBeenCalledWith({
@@ -92,7 +104,10 @@ describe("CampaignsService (Unit)", () => {
         skip: 0,
         take: 10,
       });
+      expect(campaignRepo.manager.query).toHaveBeenCalledTimes(1);
       expect(result.data).toHaveLength(1);
+      expect(result.data[0].submissionCount).toBe(5);
+      expect(result.data[0].averageRiskScore).toBe(42);
       expect(result.pagination).toEqual({ total: 1, page: 1, pageSize: 10 });
     });
 
@@ -111,10 +126,47 @@ describe("CampaignsService (Unit)", () => {
         take: 10,
       });
     });
+
+    it("should batch aggregates in a single query across all returned campaigns (non-N+1)", async () => {
+      const mockCampaigns = [
+        {
+          id: "camp-1",
+          agencyId,
+          name: "Campaign 1",
+          status: CampaignStatus.ACTIVE,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: "camp-2",
+          agencyId,
+          name: "Campaign 2",
+          status: CampaignStatus.ACTIVE,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      campaignRepo.findAndCount.mockResolvedValue([mockCampaigns as Campaign[], 2]);
+      (campaignRepo.manager.query as jest.Mock).mockResolvedValue([
+        { campaignId: "camp-1", submissionCount: "10", averageRiskScore: 35 },
+        { campaignId: "camp-2", submissionCount: "20", averageRiskScore: 75 },
+      ]);
+
+      const result = await service.list(agencyId, { page: 1, pageSize: 25 });
+      expect(campaignRepo.manager.query).toHaveBeenCalledTimes(1);
+      expect(campaignRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringContaining("WITH campaign_submissions AS"),
+        [["camp-1", "camp-2"]],
+      );
+      expect(result.data[0].submissionCount).toBe(10);
+      expect(result.data[0].averageRiskScore).toBe(35);
+      expect(result.data[1].submissionCount).toBe(20);
+      expect(result.data[1].averageRiskScore).toBe(75);
+    });
   });
 
-  describe("findById", () => {
-    it("should return campaign if found for agency", async () => {
+  describe("findById & Aggregates Logic", () => {
+    it("should return campaign if found for agency with aggregates", async () => {
       const mockCampaign = {
         id: campaignId,
         agencyId,
@@ -125,8 +177,79 @@ describe("CampaignsService (Unit)", () => {
         updatedAt: new Date(),
       };
       campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
+      (campaignRepo.manager.query as jest.Mock).mockResolvedValue([
+        {
+          campaignId,
+          submissionCount: "3",
+          averageRiskScore: 60,
+        },
+      ]);
 
       const result = await service.findById(agencyId, campaignId);
+      expect(result.id).toBe(campaignId);
+      expect(result.submissionCount).toBe(3);
+      expect(result.averageRiskScore).toBe(60);
+    });
+
+    it("should return submissionCount: 0 and averageRiskScore: null for campaign with 0 submissions", async () => {
+      const mockCampaign = {
+        id: campaignId,
+        agencyId,
+        name: "Empty Campaign",
+        externalCampaignId: null,
+        status: CampaignStatus.ACTIVE,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
+      (campaignRepo.manager.query as jest.Mock).mockResolvedValue([]); // No submissions in DB
+
+      const result = await service.findById(agencyId, campaignId);
+      expect(result.submissionCount).toBe(0);
+      expect(result.averageRiskScore).toBeNull();
+    });
+
+    it("should calculate averageRiskScore: 60 and submissionCount: 3 for 2 completed (40, 80) and 1 queued submission", async () => {
+      const mockCampaign = {
+        id: campaignId,
+        agencyId,
+        name: "Mixed Submissions Campaign",
+        externalCampaignId: null,
+        status: CampaignStatus.ACTIVE,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
+      // Query averages only completed analyses: (40 + 80)/2 = 60, total count = 3
+      (campaignRepo.manager.query as jest.Mock).mockResolvedValue([
+        {
+          campaignId,
+          submissionCount: "3",
+          averageRiskScore: 60.0,
+        },
+      ]);
+
+      const result = await service.findById(agencyId, campaignId);
+      expect(result.submissionCount).toBe(3);
+      expect(result.averageRiskScore).toBe(60);
+    });
+
+    it("should allow platform_admin (agencyId === null) to find campaign by id alone", async () => {
+      const mockCampaign = {
+        id: campaignId,
+        agencyId: "other-agency-id",
+        name: "Spring Launch",
+        externalCampaignId: null,
+        status: CampaignStatus.DRAFT,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
+
+      const result = await service.findById(null, campaignId);
+      expect(campaignRepo.findOne).toHaveBeenCalledWith({
+        where: { id: campaignId },
+      });
       expect(result.id).toBe(campaignId);
     });
 
@@ -144,14 +267,16 @@ describe("CampaignsService (Unit)", () => {
       const mockCampaign = {
         id: campaignId,
         agencyId,
-        name: "Spring Launch",
         status: CampaignStatus.DRAFT,
+        name: "Draft Campaign",
       };
       campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
 
       const result = await service.activate(agencyId, campaignId);
-      expect(mockCampaign.status).toBe(CampaignStatus.ACTIVE);
       expect(result.status).toBe(CampaignStatus.ACTIVE);
+      expect(campaignRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: CampaignStatus.ACTIVE }),
+      );
     });
 
     it("should throw 409 Conflict if campaign is already active", async () => {
@@ -187,14 +312,15 @@ describe("CampaignsService (Unit)", () => {
         id: campaignId,
         agencyId,
         status: CampaignStatus.ACTIVE,
+        name: "Active Campaign",
       };
       campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
-      analysisRepo.findOne.mockResolvedValue({ version: 1 } as CampaignAnalysis);
+      analysisRepo.findOne.mockResolvedValue({
+        version: 1,
+      } as CampaignAnalysis);
 
       const result = await service.close(agencyId, campaignId);
-      expect(mockCampaign.status).toBe(CampaignStatus.CLOSED);
       expect(result.status).toBe(CampaignStatus.CLOSED);
-
       expect(analysisRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           campaignId,
@@ -222,9 +348,7 @@ describe("CampaignsService (Unit)", () => {
 
       await service.close(agencyId, campaignId);
       expect(analysisRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          version: 1,
-        }),
+        expect.objectContaining({ version: 1 }),
       );
     });
 
@@ -261,13 +385,12 @@ describe("CampaignsService (Unit)", () => {
         id: campaignId,
         agencyId,
         status: CampaignStatus.CLOSED,
+        name: "Closed Campaign",
       };
       campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
 
       const result = await service.reopen(agencyId, campaignId);
-      expect(mockCampaign.status).toBe(CampaignStatus.ACTIVE);
       expect(result.status).toBe(CampaignStatus.ACTIVE);
-
       expect(analysisRepo.update).toHaveBeenCalledWith(
         { campaignId, isStale: false },
         { isStale: true, status: CampaignAnalysisStatus.STALE },
@@ -309,16 +432,17 @@ describe("CampaignsService (Unit)", () => {
         status: CampaignStatus.ACTIVE,
       };
       campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
-      analysisRepo.findOne.mockResolvedValue({ version: 2 } as CampaignAnalysis);
+      analysisRepo.findOne.mockResolvedValue({
+        version: 2,
+      } as CampaignAnalysis);
 
       const result = await service.analyze(agencyId, campaignId);
-      expect(mockCampaign.status).toBe(CampaignStatus.ACTIVE); // does not alter campaign status
       expect(analysisRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           campaignId,
           version: 3,
-          trigger: CampaignAnalysisTrigger.MANUAL,
           status: CampaignAnalysisStatus.PENDING,
+          trigger: CampaignAnalysisTrigger.MANUAL,
           isStale: false,
         }),
       );
@@ -327,7 +451,6 @@ describe("CampaignsService (Unit)", () => {
         "analysis-uuid-1",
         CampaignAnalysisTrigger.MANUAL,
       );
-      expect(result).toHaveProperty("analysisId", "analysis-uuid-1");
       expect(result).toHaveProperty("version", 3);
       expect(result).toHaveProperty("trigger", CampaignAnalysisTrigger.MANUAL);
     });

@@ -6,7 +6,6 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import * as argon2 from "argon2";
 import { Request } from "express";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -15,6 +14,8 @@ import { AgencyContext } from "../context/agency-context";
 import { SCOPES_KEY } from "../decorators/require-scopes.decorator";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 import { ErrorCode } from "../filters/api-error";
+import { AppConfigService } from "../../config/app-config.service";
+import { verifySecret } from "../crypto/argon2.util";
 
 /**
  * Validates `Authorization: Bearer <api_key>` per
@@ -31,6 +32,7 @@ export class ApiKeyGuard implements CanActivate {
     @InjectRepository(ApiKey) private readonly apiKeys: Repository<ApiKey>,
     private readonly agencyContext: AgencyContext,
     private readonly reflector: Reflector,
+    private readonly config: AppConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,7 +53,7 @@ export class ApiKeyGuard implements CanActivate {
       });
     }
 
-    const keyPrefix = secret.slice(0, 16);
+    const keyPrefix = secret.slice(0, 12);
     const candidate = await this.apiKeys.findOne({
       where: { keyPrefix },
       select: ["id", "agencyId", "keyHash", "scopes", "revokedAt"],
@@ -64,7 +66,11 @@ export class ApiKeyGuard implements CanActivate {
       });
     }
 
-    const isValid = await argon2.verify(candidate.keyHash, secret);
+    const isValid = await verifySecret(
+      candidate.keyHash,
+      secret,
+      this.config.argon2.apiKeyPepper,
+    );
     if (!isValid) {
       throw new UnauthorizedException({
         code: ErrorCode.UNAUTHORIZED,

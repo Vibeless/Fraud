@@ -32,7 +32,7 @@ export default function LoginPage() {
       });
 
       if (result.success) {
-        router.push('/submissions');
+        router.push('/');
       } else {
         // On failure, show a generic "Invalid email or password" message — never reveal which field was wrong (DUXS §4.1)
         setErrorMessage('Invalid email or password');

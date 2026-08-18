@@ -1,9 +1,13 @@
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsOptional, Max, Min } from "class-validator";
+import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from "class-validator";
 import { CampaignStatus } from "../../../database/entities/campaign.entity";
 
 /** Query params for GET /v1/campaigns — OAS §7. */
 export class ListCampaignsQueryDto {
+  @IsOptional()
+  @IsUUID()
+  agencyId?: string;
+
   @IsOptional()
   @IsEnum(CampaignStatus)
   status?: CampaignStatus;

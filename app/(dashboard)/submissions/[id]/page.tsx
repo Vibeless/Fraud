@@ -50,7 +50,7 @@ export default async function SubmissionDetailPage({ params }: SubmissionDetailP
         </p>
         <div className="mt-6">
           <Link
-            href="/submissions"
+            href="/"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
           >
             ← Back to Submissions Queue

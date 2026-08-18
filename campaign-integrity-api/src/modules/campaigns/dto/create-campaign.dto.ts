@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from "class-validator";
 
 /**
  * OAS §7: Request body for POST /v1/campaigns
@@ -13,4 +19,8 @@ export class CreateCampaignDto {
   @IsString()
   @MaxLength(255)
   externalCampaignId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  agencyId?: string;
 }
