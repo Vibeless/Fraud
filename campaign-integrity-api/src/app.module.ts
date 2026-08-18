@@ -16,6 +16,7 @@ import { IntelligenceModule } from "./modules/intelligence/intelligence.module";
 import { DetectionModule } from "./modules/detection/detection.module";
 import { QueueModule } from "./queue/queue.module";
 import { ApiKeysModule } from "./modules/api-keys/api-keys.module";
+import { AuditModule } from "./modules/audit/audit.module";
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ApiKeysModule } from "./modules/api-keys/api-keys.module";
     DetectionModule,
     QueueModule,
     SubmissionsModule,
+    AuditModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

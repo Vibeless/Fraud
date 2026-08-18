@@ -46,7 +46,7 @@ export class AuditLog {
   @Column({ type: "uuid", nullable: true })
   resourceId!: string | null;
 
-  @Column({ type: "jsonb", nullable: true })
+  @Column({ type: "jsonb", nullable: true, select: false })
   metadata!: Record<string, unknown> | null;
 
   @Column({ type: "inet", nullable: true })
