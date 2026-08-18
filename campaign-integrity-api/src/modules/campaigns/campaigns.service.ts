@@ -42,12 +42,15 @@ export class CampaignsService {
       }),
     );
 
-    return this.toPublicCampaign(campaign);
+    return this.toPublicCampaign(campaign, {
+      submissionCount: 0,
+      averageRiskScore: null,
+    });
   }
 
   /**
    * GET /v1/campaigns — OAS §7
-   * Lists campaigns scoped to caller's agency.
+   * Lists campaigns scoped to caller's agency, attaching batch-computed aggregate fields.
    */
   async list(agencyId: string, query: ListCampaignsQueryDto) {
     const where: FindOptionsWhere<Campaign> = { agencyId };
@@ -62,8 +65,12 @@ export class CampaignsService {
       take: query.pageSize,
     });
 
+    const aggregatesMap = await this.getAggregatesForCampaigns(
+      data.map((c) => c.id),
+    );
+
     return {
-      data: data.map((c) => this.toPublicCampaign(c)),
+      data: data.map((c) => this.toPublicCampaign(c, aggregatesMap.get(c.id))),
       pagination: {
         total,
         page: query.page,
@@ -79,7 +86,8 @@ export class CampaignsService {
     const campaign = await this.findScoped(
       agencyId !== null ? { id, agencyId } : { id },
     );
-    return this.toPublicCampaign(campaign);
+    const aggregatesMap = await this.getAggregatesForCampaigns([campaign.id]);
+    return this.toPublicCampaign(campaign, aggregatesMap.get(campaign.id));
   }
 
   /**
@@ -100,7 +108,8 @@ export class CampaignsService {
 
     campaign.status = CampaignStatus.ACTIVE;
     const updated = await this.campaigns.save(campaign);
-    return this.toPublicCampaign(updated);
+    const aggregatesMap = await this.getAggregatesForCampaigns([updated.id]);
+    return this.toPublicCampaign(updated, aggregatesMap.get(updated.id));
   }
 
   /**
@@ -147,7 +156,8 @@ export class CampaignsService {
       CampaignAnalysisTrigger.CAMPAIGN_CLOSED,
     );
 
-    return this.toPublicCampaign(updated);
+    const aggregatesMap = await this.getAggregatesForCampaigns([updated.id]);
+    return this.toPublicCampaign(updated, aggregatesMap.get(updated.id));
   }
 
   /**
@@ -177,7 +187,8 @@ export class CampaignsService {
       { isStale: true, status: CampaignAnalysisStatus.STALE },
     );
 
-    return this.toPublicCampaign(updated);
+    const aggregatesMap = await this.getAggregatesForCampaigns([updated.id]);
+    return this.toPublicCampaign(updated, aggregatesMap.get(updated.id));
   }
 
   /**
@@ -249,6 +260,79 @@ export class CampaignsService {
     return campaign;
   }
 
+  /**
+   * Batches aggregate calculation (submissionCount, averageRiskScore) across campaign IDs.
+   * Efficient single SQL query with non-N+1 scaling.
+   * - submissionCount: total volume of submissions where campaignId matches (all statuses).
+   * - averageRiskScore: average of riskScore from each submission's LATEST completed analysis only.
+   *   Submissions with no completed analysis are excluded from the average.
+   *   If 0 completed submissions exist, averageRiskScore is null.
+   */
+  private async getAggregatesForCampaigns(
+    campaignIds: string[],
+  ): Promise<
+    Map<string, { submissionCount: number; averageRiskScore: number | null }>
+  > {
+    const map = new Map<
+      string,
+      { submissionCount: number; averageRiskScore: number | null }
+    >();
+
+    if (!campaignIds || campaignIds.length === 0) {
+      return map;
+    }
+
+    if (!this.campaigns.manager?.query) {
+      return map;
+    }
+
+    const results: Array<{
+      campaignId: string;
+      submissionCount: string | number;
+      averageRiskScore: string | number | null;
+    }> = await this.campaigns.manager.query(
+      `
+      WITH campaign_submissions AS (
+        SELECT id, "campaignId"
+        FROM submissions
+        WHERE "campaignId" = ANY($1)
+      ),
+      latest_analyses AS (
+        SELECT DISTINCT ON (a."submissionId")
+          a."submissionId",
+          a."riskScore" AS risk_score
+        FROM analyses a
+        INNER JOIN campaign_submissions cs ON cs.id = a."submissionId"
+        WHERE a.status = 'completed' AND a."riskScore" IS NOT NULL
+        ORDER BY a."submissionId", a."createdAt" DESC
+      )
+      SELECT
+        cs."campaignId" AS "campaignId",
+        COUNT(cs.id)::int AS "submissionCount",
+        AVG(la.risk_score)::float AS "averageRiskScore"
+      FROM campaign_submissions cs
+      LEFT JOIN latest_analyses la ON la."submissionId" = cs.id
+      GROUP BY cs."campaignId"
+      `,
+      [campaignIds],
+    );
+
+    for (const row of results) {
+      const submissionCount = Number(row.submissionCount) || 0;
+      const averageRiskScore =
+        row.averageRiskScore !== null && row.averageRiskScore !== undefined
+          ? Math.round(Number(row.averageRiskScore))
+          : null;
+
+      map.set(row.campaignId, {
+        submissionCount,
+        averageRiskScore,
+      });
+    }
+
+    return map;
+  }
+
   private async findScoped(
     where: FindOptionsWhere<Campaign>,
   ): Promise<Campaign> {
@@ -262,12 +346,17 @@ export class CampaignsService {
     return campaign;
   }
 
-  private toPublicCampaign(c: Campaign) {
+  private toPublicCampaign(
+    c: Campaign,
+    aggregates?: { submissionCount: number; averageRiskScore: number | null },
+  ) {
     return {
       id: c.id,
       name: c.name,
       externalCampaignId: c.externalCampaignId,
       status: c.status,
+      submissionCount: aggregates?.submissionCount ?? 0,
+      averageRiskScore: aggregates?.averageRiskScore ?? null,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
     };

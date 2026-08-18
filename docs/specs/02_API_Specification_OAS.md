@@ -240,34 +240,178 @@ Query params: status, riskLevel, campaignId, dateFrom, dateTo, page, pageSize
 | **POST** | **/v1/campaigns** |
 |----------|-------------------|
 
-#### Create a campaign reference used to group submissions.
+#### Create a campaign reference used to group submissions (starts in status: "draft").
 
-**Auth:** API key or dashboard JWT
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
 
 #### Request Body
-```
+```json
 {
-"name": "Q3 Ambassador Drop",
-"externalCampaignId": "camp-42" // optional
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42"
 }
 ```
 #### Response
-```
+```json
 201 Created
-{ "id": "...", "name": "Q3 Ambassador Drop", "status": "active", "createdAt": "..." }
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "draft",
+  "submissionCount": 0,
+  "averageRiskScore": null,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T10:00:00Z"
+}
 ```
+
 | **GET** | **/v1/campaigns** |
 |---------|-------------------|
 
-#### List campaigns for the caller’s agency.
+#### List campaigns for the caller’s agency, with aggregate metrics (DUXS §4.4).
 
-**Auth:** API key or dashboard JWT
+**Auth:** API key (`campaigns:read`) or dashboard JWT
+
+#### Query Parameters
+- `status` (optional): `draft` | `active` | `closed`
+- `agencyId` (required for `platform_admin` cross-agency queries)
+- `page` (default: 1)
+- `pageSize` (default: 25)
 
 #### Response
-```
+```json
 200 OK
-{ "data": [ { "id": "...", "name": "...", "status": "active" } ], "pagination": { ... } }
+{
+  "data": [
+    {
+      "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+      "name": "Q3 Ambassador Drop",
+      "externalCampaignId": "camp-42",
+      "status": "active",
+      "submissionCount": 42,
+      "averageRiskScore": 60,
+      "createdAt": "2026-08-01T10:00:00Z",
+      "updatedAt": "2026-08-01T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "pageSize": 25
+  }
+}
 ```
+
+| **GET** | **/v1/campaigns/{id}** |
+|---------|------------------------|
+
+#### Get a single campaign by ID with aggregate metrics.
+
+**Auth:** API key (`campaigns:read`) or dashboard JWT
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "active",
+  "submissionCount": 42,
+  "averageRiskScore": 60,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T10:00:00Z"
+}
+```
+
+| **PATCH** | **/v1/campaigns/{id}/activate** |
+|-----------|---------------------------------|
+
+#### Activate a draft campaign (draft -> active).
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "active",
+  "submissionCount": 0,
+  "averageRiskScore": null,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T10:15:00Z"
+}
+```
+
+| **PATCH** | **/v1/campaigns/{id}/close** |
+|-----------|------------------------------|
+
+#### Close an active campaign (active -> closed), locking submissions and queueing final analysis.
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "closed",
+  "submissionCount": 42,
+  "averageRiskScore": 60,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T12:00:00Z"
+}
+```
+
+| **PATCH** | **/v1/campaigns/{id}/reopen** |
+|-----------|-------------------------------|
+
+#### Reopen a closed campaign (closed -> active), marking previous analyses stale and allowing submissions.
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+200 OK
+{
+  "id": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "name": "Q3 Ambassador Drop",
+  "externalCampaignId": "camp-42",
+  "status": "active",
+  "submissionCount": 42,
+  "averageRiskScore": 60,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "updatedAt": "2026-08-01T13:00:00Z"
+}
+```
+
+| **POST** | **/v1/campaigns/{id}/analyze** |
+|----------|--------------------------------|
+
+#### Manually trigger an asynchronous campaign analysis on an active campaign.
+
+**Auth:** API key (`campaigns:write`) or dashboard JWT (`platform_admin`, `agency_admin`, `campaign_manager`)
+
+#### Response
+```json
+201 Created
+{
+  "campaignId": "c3705b37-562e-44b4-865f-fe5d233b626c",
+  "analysisId": "e5f2780e-3b2d-45f8-8a89-299f0e1590df",
+  "version": 1,
+  "status": "pending",
+  "trigger": "manual",
+  "createdAt": "2026-08-01T10:30:00Z"
+}
+```
+
+
 ## 8. Authentication (Dashboard)
 
 | **POST** | **/v1/auth/login** |

@@ -22,3 +22,23 @@ export type {
   CreatorContext,
   AnalysisResponse,
 } from './submissions';
+
+export {
+  createCampaign,
+  listCampaigns,
+  getCampaign,
+  activateCampaign,
+  closeCampaign,
+  reopenCampaign,
+  analyzeCampaign,
+} from './campaigns';
+
+export type {
+  Campaign,
+  CampaignStatus,
+  PaginatedCampaignsResponse,
+  CreateCampaignParams,
+  ListCampaignsParams,
+  CampaignAnalysisResult,
+} from './campaigns';
+
