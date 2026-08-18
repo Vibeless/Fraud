@@ -14,6 +14,7 @@ import {
 import { SubmissionsService } from "./submissions.service";
 import { CreateSubmissionDto } from "./dto/create-submission.dto";
 import { ListSubmissionsQueryDto } from "./dto/list-submissions-query.dto";
+import { ReviewSubmissionDto } from "./dto/review-submission.dto";
 import { AuthGuard } from "../../common/guards/auth.guard";
 import { JwtGuard } from "../../common/guards/jwt.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";

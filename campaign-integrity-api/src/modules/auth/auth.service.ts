@@ -66,7 +66,11 @@ export class AuthService {
         )
       : false;
 
-    if (!user || !passwordOk || user.status !== UserStatus.ACTIVE) {
+    const isAllowedStatus =
+      user &&
+      (user.status === UserStatus.ACTIVE || user.status === UserStatus.INVITED);
+
+    if (!user || !passwordOk || !isAllowedStatus) {
       await this.recordAuthEvent(
         null,
         user?.agencyId ?? null,
@@ -85,7 +89,12 @@ export class AuthService {
     }
 
     const tokens = await this.issueTokenPair(user);
-    await this.users.update(user.id, { lastLoginAt: new Date() });
+    const updateData: Partial<User> = { lastLoginAt: new Date() };
+    if (user.status === UserStatus.INVITED) {
+      updateData.status = UserStatus.ACTIVE;
+      user.status = UserStatus.ACTIVE;
+    }
+    await this.users.update(user.id, updateData);
     await this.recordAuthEvent(
       user.id,
       user.agencyId,
