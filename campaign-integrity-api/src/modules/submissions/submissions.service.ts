@@ -276,6 +276,10 @@ export class SubmissionsService {
       submissionId: analysis.submissionId,
       riskScore: analysis.riskScore,
       riskLevel: analysis.riskLevel as RiskLevel,
+      riskSummary: this.evidenceGenerator.generateSummary(
+        analysis.riskLevel,
+        findings,
+      ),
       evidence: this.evidenceGenerator.generate(findings),
       creatorContext,
       analysisVersion: analysis.analysisVersion,

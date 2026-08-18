@@ -351,6 +351,9 @@ describe("Submissions Review & Creator Context (Integration / E2E)", () => {
       expect(res.body).toHaveProperty("analysisId");
       expect(res.body).toHaveProperty("riskScore", 80);
       expect(res.body).toHaveProperty("riskLevel", "high");
+      expect(res.body).toHaveProperty("riskSummary");
+      expect(typeof res.body.riskSummary).toBe("string");
+      expect(res.body.riskSummary).toContain("High risk");
       expect(res.body).toHaveProperty("creatorContext");
 
       const context = res.body.creatorContext;

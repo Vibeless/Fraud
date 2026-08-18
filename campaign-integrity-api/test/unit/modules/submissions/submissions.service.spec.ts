@@ -61,6 +61,9 @@ describe("SubmissionsService (Unit)", () => {
 
     evidenceGenerator = {
       generate: jest.fn().mockReturnValue([]),
+      generateSummary: jest
+        .fn()
+        .mockReturnValue("High risk — signs of artificial engagement velocity and patterns."),
     } as unknown as jest.Mocked<EvidenceGeneratorService>;
 
     campaignsService = {
@@ -193,6 +196,10 @@ describe("SubmissionsService (Unit)", () => {
 
       const result = await service.getLatestAnalysis(agencyId, submissionId);
 
+      expect(result).toHaveProperty("riskSummary");
+      expect(result.riskSummary).toBe(
+        "High risk — signs of artificial engagement velocity and patterns.",
+      );
       expect(result).toHaveProperty("creatorContext");
       expect(result.creatorContext).toEqual({
         accountAgeSummary: "Account created 3 years ago",

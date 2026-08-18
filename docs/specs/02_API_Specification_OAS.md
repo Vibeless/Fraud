@@ -135,6 +135,7 @@ This is the primary result endpoint. It returns exactly the fields an agency nee
 "submissionId": "b6b1...c2",
 "riskScore": 72,
 "riskLevel": "high", // low | moderate | high | critical
+"riskSummary": "High risk — signs of artificial engagement velocity and patterns.",
 "evidence": [
 {
 "category": "engagement",
