@@ -19,6 +19,9 @@ export interface Submission {
   postUrl: string;
   campaignId: string | null;
   latestAnalysisId?: string | null;
+  reviewerNote?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   riskScore?: number | null;
@@ -43,6 +46,11 @@ export interface CreateSubmissionParams {
   externalSubmissionId?: string | null;
 }
 
+export interface ReviewSubmissionParams {
+  reviewerNote?: string;
+  markReviewed?: boolean;
+}
+
 export interface ListSubmissionsParams {
   status?: SubmissionStatus | string;
   riskLevel?: RiskLevel | string;
@@ -60,12 +68,21 @@ export interface EvidenceItem {
   summary: string;
 }
 
+export interface CreatorContext {
+  accountAgeSummary?: string | null;
+  followerCount?: number | null;
+  priorSubmissionsCount?: number | null;
+  priorSubmissionsAvgRiskScore?: number | null;
+}
+
 export interface AnalysisResponse {
   analysisId: string;
   submissionId: string;
   riskScore: number;
   riskLevel: RiskLevel;
+  riskSummary?: string | null;
   evidence: EvidenceItem[];
+  creatorContext?: CreatorContext | null;
   analysisVersion: string;
   analyzedAt: string;
 }
@@ -136,6 +153,22 @@ export async function listSubmissions(
 
   return apiClient<PaginatedSubmissionsResponse>(endpoint, {
     method: 'GET',
+    token,
+  });
+}
+
+/**
+ * Submits reviewer notes and reviewed status for a submission per OAS §5.
+ */
+export async function reviewSubmission(
+  id: string,
+  params: ReviewSubmissionParams,
+  explicitToken?: string
+): Promise<Submission> {
+  const token = await resolveToken(explicitToken);
+  return apiClient<Submission>(`submissions/${encodeURIComponent(id)}/review`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
     token,
   });
 }

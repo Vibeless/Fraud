@@ -6,6 +6,7 @@ export {
   getSubmission,
   listSubmissions,
   getLatestAnalysis,
+  reviewSubmission,
 } from './submissions';
 
 export type {
@@ -15,7 +16,9 @@ export type {
   Pagination,
   PaginatedSubmissionsResponse,
   CreateSubmissionParams,
+  ReviewSubmissionParams,
   ListSubmissionsParams,
   EvidenceItem,
+  CreatorContext,
   AnalysisResponse,
 } from './submissions';
