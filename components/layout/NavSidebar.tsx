@@ -64,6 +64,9 @@ export function NavSidebar() {
   const permissions = usePermissions();
 
   const isLinkActive = (href: string, exact = false) => {
+    if (href === '/') {
+      return pathname === '/' || pathname.startsWith('/submissions');
+    }
     if (exact) {
       return pathname === href;
     }
@@ -101,16 +104,16 @@ export function NavSidebar() {
             {/* Submissions Queue — visible to all authenticated roles */}
             {permissions.canViewSubmissions && (
               <Link
-                href="/submissions"
+                href="/"
                 className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  isLinkActive('/submissions')
+                  isLinkActive('/')
                     ? 'bg-slate-900 text-white'
                     : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 <QueueIcon
                   className={`h-5 w-5 flex-shrink-0 ${
-                    isLinkActive('/submissions') ? 'text-white' : 'text-slate-500'
+                    isLinkActive('/') ? 'text-white' : 'text-slate-500'
                   }`}
                 />
                 <span className="truncate">Submissions Queue</span>

@@ -9,18 +9,24 @@ import { HttpExceptionFilter } from "../../src/common/filters/http-exception.fil
 import {
   Agency,
   AgencyStatus,
+  Analysis,
+  AnalysisStatus,
   AuditLog,
   Campaign,
   CampaignAnalysis,
   CampaignAnalysisStatus,
   CampaignAnalysisTrigger,
   CampaignStatus,
+  RiskLevel,
+  Submission,
+  SubmissionStatus,
   User,
   UserRole,
   UserStatus,
 } from "../../src/database/entities";
 
 describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
+  jest.setTimeout(60000);
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -542,4 +548,149 @@ describe("Campaigns API Lifecycle & Scoping (Integration / E2E)", () => {
       expect(reopenRes.body.status).toBe(CampaignStatus.ACTIVE);
     });
   });
+
+  describe("Aggregate Fields (submissionCount & averageRiskScore) — DUXS §4.4", () => {
+    let aggCampaignId: string;
+    let submissionRepo: any;
+    let analysisRepo: any;
+
+    beforeAll(async () => {
+      submissionRepo = dataSource.getRepository(Submission);
+      analysisRepo = dataSource.getRepository(Analysis);
+
+      // Create a test campaign
+      const campRes = await request(app.getHttpServer())
+        .post("/v1/campaigns")
+        .set("Authorization", `Bearer ${managerTokenAgencyA}`)
+        .send({ name: "Aggregates Test Campaign", externalCampaignId: "agg-1" })
+        .expect(201);
+
+      aggCampaignId = campRes.body.id;
+      expect(campRes.body.submissionCount).toBe(0);
+      expect(campRes.body.averageRiskScore).toBeNull();
+    });
+
+    it("Campaign with 0 submissions returns submissionCount: 0 and averageRiskScore: null", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/v1/campaigns/${aggCampaignId}`)
+        .set("Authorization", `Bearer ${managerTokenAgencyA}`)
+        .expect(200);
+
+      expect(res.body.submissionCount).toBe(0);
+      expect(res.body.averageRiskScore).toBeNull();
+    });
+
+    it("Campaign with 3 submissions (2 completed scoring 40 and 80, 1 queued) returns submissionCount: 3, averageRiskScore: 60", async () => {
+      // 1. Completed submission 1 with score 40
+      const sub1 = await submissionRepo.save(
+        submissionRepo.create({
+          agencyId: agencyA.id,
+          campaignId: aggCampaignId,
+          xPostUrl: "https://x.com/creator1/status/9000000000000000001",
+          xPostId: "9000000000000000001",
+          status: SubmissionStatus.COMPLETED,
+        }),
+      );
+      await analysisRepo.save(
+        analysisRepo.create({
+          submissionId: sub1.id,
+          analysisVersion: "1.0",
+          riskScore: 40,
+          riskLevel: RiskLevel.MODERATE,
+          status: AnalysisStatus.COMPLETED,
+          startedAt: new Date(Date.now() - 10000),
+          createdAt: new Date(Date.now() - 10000),
+        }),
+      );
+
+      // 2. Completed submission 2 with score 80
+      const sub2 = await submissionRepo.save(
+        submissionRepo.create({
+          agencyId: agencyA.id,
+          campaignId: aggCampaignId,
+          xPostUrl: "https://x.com/creator2/status/9000000000000000002",
+          xPostId: "9000000000000000002",
+          status: SubmissionStatus.COMPLETED,
+        }),
+      );
+      await analysisRepo.save(
+        analysisRepo.create({
+          submissionId: sub2.id,
+          analysisVersion: "1.0",
+          riskScore: 80,
+          riskLevel: RiskLevel.CRITICAL,
+          status: AnalysisStatus.COMPLETED,
+          startedAt: new Date(Date.now() - 5000),
+          createdAt: new Date(Date.now() - 5000),
+        }),
+      );
+
+      // 3. Queued submission 3 with no analysis
+      await submissionRepo.save(
+        submissionRepo.create({
+          agencyId: agencyA.id,
+          campaignId: aggCampaignId,
+          xPostUrl: "https://x.com/creator3/status/9000000000000000003",
+          xPostId: "9000000000000000003",
+          status: SubmissionStatus.QUEUED,
+        }),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/campaigns/${aggCampaignId}`)
+        .set("Authorization", `Bearer ${managerTokenAgencyA}`)
+        .expect(200);
+
+      // Total count across all statuses is 3; average of 40 and 80 is 60 (queued excluded)
+      expect(res.body.submissionCount).toBe(3);
+      expect(res.body.averageRiskScore).toBe(60);
+    });
+
+    it("Re-analysis on a submission uses ONLY the latest completed analysis score in the average", async () => {
+      // Find sub1 and add a newer completed analysis with score 100
+      const sub1 = await submissionRepo.findOne({
+        where: {
+          campaignId: aggCampaignId,
+          xPostId: "9000000000000000001",
+        },
+      });
+      expect(sub1).toBeDefined();
+
+      // Add re-analysis created now (newer than initial analysis with score 40)
+      await analysisRepo.save(
+        analysisRepo.create({
+          submissionId: sub1.id,
+          analysisVersion: "1.1",
+          riskScore: 100,
+          riskLevel: RiskLevel.CRITICAL,
+          status: AnalysisStatus.COMPLETED,
+          startedAt: new Date(),
+          createdAt: new Date(),
+        }),
+      );
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/campaigns/${aggCampaignId}`)
+        .set("Authorization", `Bearer ${managerTokenAgencyA}`)
+        .expect(200);
+
+      // Now sub1 latest score is 100, sub2 latest score is 80 -> average is (100 + 80)/2 = 90
+      expect(res.body.submissionCount).toBe(3);
+      expect(res.body.averageRiskScore).toBe(90);
+    });
+
+    it("GET /v1/campaigns list endpoint returns correct aggregates in batch across multiple campaigns", async () => {
+      const res = await request(app.getHttpServer())
+        .get("/v1/campaigns")
+        .set("Authorization", `Bearer ${managerTokenAgencyA}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty("data");
+      const target = res.body.data.find((c: any) => c.id === aggCampaignId);
+      expect(target).toBeDefined();
+      expect(target.submissionCount).toBe(3);
+      expect(target.averageRiskScore).toBe(90);
+    });
+  });
 });
+
