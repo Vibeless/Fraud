@@ -253,6 +253,25 @@ describe("CampaignsService (Unit)", () => {
       expect(result.id).toBe(campaignId);
     });
 
+    it("should allow platform_admin (agencyId === null) to find campaign by id alone", async () => {
+      const mockCampaign = {
+        id: campaignId,
+        agencyId: "other-agency-id",
+        name: "Spring Launch",
+        externalCampaignId: null,
+        status: CampaignStatus.DRAFT,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      campaignRepo.findOne.mockResolvedValue(mockCampaign as Campaign);
+
+      const result = await service.findById(null, campaignId);
+      expect(campaignRepo.findOne).toHaveBeenCalledWith({
+        where: { id: campaignId },
+      });
+      expect(result.id).toBe(campaignId);
+    });
+
     it("should throw NotFoundException (404) if campaign does not exist or belongs to another agency", async () => {
       campaignRepo.findOne.mockResolvedValue(null);
 
