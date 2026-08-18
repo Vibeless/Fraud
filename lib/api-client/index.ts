@@ -53,3 +53,18 @@ export type {
   ListAuditLogsParams,
 } from './audit';
 
+export {
+  listApiKeys,
+  createApiKey,
+  revokeApiKey,
+  API_KEY_SCOPES,
+} from './api-keys';
+
+export type {
+  ApiKeyScope,
+  ApiKeyListItem,
+  ApiKeyCreatedResponse,
+  ApiKeyListResponse,
+  CreateApiKeyParams,
+} from './api-keys';
+
