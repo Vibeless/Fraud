@@ -520,7 +520,137 @@ Query params: status, riskLevel, campaignId, dateFrom, dateTo, page, pageSize
 
 204 No Content
 
-## 10. Audit Log
+## 10. Users & Roles Management
+
+| **POST** | **/v1/users** |
+|----------|---------------|
+
+#### Invite a new user to the agency.
+
+Generates a cryptographically secure random temporary password, hashes it with Argon2id, creates the user in `invited` status, and returns the temporary password once in the response.
+
+**Auth:** Dashboard JWT (agency_admin, platform_admin)
+
+#### Request Body
+```json
+{
+  "email": "analyst@agency.com",
+  "role": "fraud_reviewer",
+  "agencyId": "3fa85f64-5717-4562-b3fc-2c963f66afa6" // required for platform_admin only
+}
+```
+
+#### Response
+```json
+201 Created
+{
+  "id": "b6b10000-0000-0000-0000-000000000001",
+  "email": "analyst@agency.com",
+  "role": "fraud_reviewer",
+  "status": "invited",
+  "temporaryPassword": "aBcDeFgHiJkLmNoP",
+  "createdAt": "2026-08-18T10:00:00.000Z"
+}
+```
+
+#### Error Responses
+
+| **Status** | **Code** | **Meaning** |
+|------------|----------|-------------|
+| 400 | VALIDATION_ERROR | Invalid email, missing required fields, or attempting to invite `platform_admin` |
+| 403 | FORBIDDEN | Non-platform_admin attempting to invite for a different agency |
+| 409 | CONFLICT | User with this email already exists |
+
+| **GET** | **/v1/users** |
+|---------|---------------|
+
+#### List users for the agency.
+
+**Auth:** Dashboard JWT (agency_admin, platform_admin)
+
+#### Response
+```json
+200 OK
+{
+  "data": [
+    {
+      "id": "b6b10000-0000-0000-0000-000000000001",
+      "email": "analyst@agency.com",
+      "role": "fraud_reviewer",
+      "status": "active",
+      "lastLoginAt": "2026-08-18T10:30:00.000Z",
+      "createdAt": "2026-08-18T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+| **PATCH** | **/v1/users/{id}/role** |
+|-----------|-------------------------|
+
+#### Update a user's RBAC role.
+
+**Auth:** Dashboard JWT (agency_admin, platform_admin)
+
+#### Request Body
+```json
+{
+  "role": "campaign_manager"
+}
+```
+
+#### Response
+```json
+200 OK
+{
+  "id": "b6b10000-0000-0000-0000-000000000001",
+  "email": "analyst@agency.com",
+  "role": "campaign_manager",
+  "status": "active",
+  "lastLoginAt": "2026-08-18T10:30:00.000Z",
+  "createdAt": "2026-08-18T10:00:00.000Z",
+  "updatedAt": "2026-08-18T11:00:00.000Z"
+}
+```
+
+#### Error Responses
+
+| **Status** | **Code** | **Meaning** |
+|------------|----------|-------------|
+| 400 | VALIDATION_ERROR | Invalid role or attempting to assign `platform_admin` |
+| 404 | NOT_FOUND | User not found or belongs to another agency |
+
+| **PATCH** | **/v1/users/{id}/disable** |
+|-----------|----------------------------|
+
+#### Disable a user account.
+
+Sets the user's status to `disabled`. The caller cannot disable their own account.
+
+**Auth:** Dashboard JWT (agency_admin, platform_admin)
+
+#### Response
+```json
+200 OK
+{
+  "id": "b6b10000-0000-0000-0000-000000000001",
+  "email": "analyst@agency.com",
+  "role": "fraud_reviewer",
+  "status": "disabled",
+  "lastLoginAt": "2026-08-18T10:30:00.000Z",
+  "createdAt": "2026-08-18T10:00:00.000Z",
+  "updatedAt": "2026-08-18T11:15:00.000Z"
+}
+```
+
+#### Error Responses
+
+| **Status** | **Code** | **Meaning** |
+|------------|----------|-------------|
+| 400 | VALIDATION_ERROR | Admin attempting to disable their own account |
+| 404 | NOT_FOUND | User not found or belongs to another agency |
+
+## 11. Audit Log
 
 | **GET** | **/v1/audit-logs** |
 |---------|--------------------|
@@ -556,7 +686,7 @@ Query params: action, actorId, dateFrom, dateTo, page, pageSize, agencyId (requi
   }
 }
 ```
-## 11. Health
+## 12. Health
 
 | **GET** | **/v1/health** |
 |---------|----------------|
@@ -570,7 +700,7 @@ Query params: action, actorId, dateFrom, dateTo, page, pageSize, agencyId (requi
 200 OK
 { "status": "ok", "version": "1.4.0", "dependencies": { "database": "ok", "redis": "ok", "queue": "ok" } }
 ```
-## 12. Out of Scope for MVP
+## 13. Out of Scope for MVP
 
 - Webhooks / push notifications on analysis completion — MVP is poll-based; agencies call GET /v1/submissions/{id}/analysis until status=completed.
 
@@ -579,3 +709,5 @@ Query params: action, actorId, dateFrom, dateTo, page, pageSize, agencyId (requi
 - PATCH/PUT on submissions or analyses — all data is immutable once created; re-analysis creates a new analysis rather than mutating one.
 
 - Public, unauthenticated endpoints beyond /v1/health.
+
+- Self-service password change or reset endpoints (e.g. POST /v1/auth/change-password, POST /v1/auth/reset-password) — MVP users authenticate with their initial provisioned/temporary credentials; password rotation and email-based reset tokens are planned post-MVP extensions.
