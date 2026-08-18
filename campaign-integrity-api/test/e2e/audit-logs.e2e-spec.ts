@@ -9,6 +9,7 @@ import { HttpExceptionFilter } from "../../src/common/filters/http-exception.fil
 import {
   Agency,
   AgencyStatus,
+  ApiKey,
   AuditActorType,
   AuditLog,
   User,
@@ -397,4 +398,87 @@ describe("Audit Logs Querying & Scoping (Integration / E2E)", () => {
       expect(createdEntry.resourceType).toBe("campaign");
     });
   });
+
+  describe("Actor Resolution (actorLabel Resolution)", () => {
+    it("resolves actor_type=user to user email, actor_type=api_key to keyPrefix, and actor_type=system to 'System'", async () => {
+      const apiKeyRepo = dataSource.getRepository(ApiKey);
+      const auditLogRepo = dataSource.getRepository(AuditLog);
+
+      // Create a test API key for Agency A
+      const testApiKey = await apiKeyRepo.save(
+        apiKeyRepo.create({
+          agencyId: agencyA.id,
+          name: "Audit Resolution Test Key",
+          keyPrefix: "ci_live_actorres",
+          keyHash: "dummy-key-hash",
+          scopes: ["submissions:write"],
+        }),
+      );
+
+      // Seed 3 specific audit entries: user, api_key, and system
+      const [userLog, keyLog, systemLog] = await auditLogRepo.save([
+        auditLogRepo.create({
+          agencyId: agencyA.id,
+          actorType: AuditActorType.USER,
+          actorId: adminAUser.id,
+          action: "user.action_test",
+          resourceType: "user",
+          resourceId: adminAUser.id,
+          createdAt: new Date("2026-08-18T10:00:00.000Z"),
+        }),
+        auditLogRepo.create({
+          agencyId: agencyA.id,
+          actorType: AuditActorType.API_KEY,
+          actorId: testApiKey.id,
+          action: "api_key.action_test",
+          resourceType: "api_key",
+          resourceId: testApiKey.id,
+          createdAt: new Date("2026-08-18T10:05:00.000Z"),
+        }),
+        auditLogRepo.create({
+          agencyId: agencyA.id,
+          actorType: AuditActorType.SYSTEM,
+          actorId: null,
+          action: "system.action_test",
+          resourceType: null,
+          resourceId: null,
+          createdAt: new Date("2026-08-18T10:10:00.000Z"),
+        }),
+      ]);
+
+      // Query audit logs as Agency A Admin
+      const res = await request(app.getHttpServer())
+        .get("/v1/audit-logs?pageSize=50")
+        .set("Authorization", `Bearer ${adminTokenAgencyA}`)
+        .expect(200);
+
+      // 1. Verify user actor resolves to correct email and preserves raw actorId
+      const foundUserLog = res.body.data.find(
+        (entry: any) => entry.id === userLog.id,
+      );
+      expect(foundUserLog).toBeDefined();
+      expect(foundUserLog.actorType).toBe("user");
+      expect(foundUserLog.actorId).toBe(adminAUser.id);
+      expect(foundUserLog.actorLabel).toBe(adminAUser.email);
+
+      // 2. Verify api_key actor resolves to keyPrefix and preserves raw actorId
+      const foundKeyLog = res.body.data.find(
+        (entry: any) => entry.id === keyLog.id,
+      );
+      expect(foundKeyLog).toBeDefined();
+      expect(foundKeyLog.actorType).toBe("api_key");
+      expect(foundKeyLog.actorId).toBe(testApiKey.id);
+      expect(foundKeyLog.actorLabel).toBe("ci_live_actorres");
+
+      // 3. Verify system actor resolves to 'System' with null actorId
+      const foundSystemLog = res.body.data.find(
+        (entry: any) => entry.id === systemLog.id,
+      );
+      expect(foundSystemLog).toBeDefined();
+      expect(foundSystemLog.actorType).toBe("system");
+      expect(foundSystemLog.actorId).toBeNull();
+      expect(foundSystemLog.actorLabel).toBe("System");
+    });
+  });
 });
+

@@ -8,6 +8,7 @@ export interface AuditLogResponseDto {
   action: string;
   actorType: AuditActorType;
   actorId: string | null;
+  actorLabel: string | null;
   resourceType: string | null;
   resourceId: string | null;
   ipAddress: string | null;

@@ -42,3 +42,14 @@ export type {
   CampaignAnalysisResult,
 } from './campaigns';
 
+export {
+  listAuditLogs,
+} from './audit';
+
+export type {
+  AuditActorType,
+  AuditLogEntry,
+  ListAuditLogsResponse,
+  ListAuditLogsParams,
+} from './audit';
+
