@@ -531,11 +531,30 @@ Query params: status, riskLevel, campaignId, dateFrom, dateTo, page, pageSize
 
 #### Response
 ```
-Query params: action, actorId, dateFrom, dateTo, page, pageSize
+Query params: action, actorId, dateFrom, dateTo, page, pageSize, agencyId (required for platform_admin)
 ```
 ```
 200 OK
-{ "data": [ { "id": "...", "action": "api_key.created", "actorType": "user", "actorId": "...", "createdAt": "..." } ], "pagination": { ... } }
+{
+  "data": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "action": "api_key.created",
+      "actorType": "user",
+      "actorId": "5085e567-47f3-412f-91b2-78d22dcdd983",
+      "actorLabel": "admin@dev-test-agency.local",
+      "resourceType": "api_key",
+      "resourceId": "c3705b37-1111-2222-3333-444444444444",
+      "ipAddress": "192.168.1.100",
+      "createdAt": "2026-08-18T02:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "pageSize": 25
+  }
+}
 ```
 ## 11. Health
 

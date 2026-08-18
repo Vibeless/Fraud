@@ -1,10 +1,12 @@
 import { Repository } from "typeorm";
 import { AuditService } from "../../../../src/modules/audit/audit.service";
-import { AuditActorType, AuditLog } from "../../../../src/database/entities";
+import { ApiKey, AuditActorType, AuditLog, User } from "../../../../src/database/entities";
 
 describe("AuditService (Unit)", () => {
   let service: AuditService;
   let auditLogRepo: jest.Mocked<Repository<AuditLog>>;
+  let userRepo: jest.Mocked<Repository<User>>;
+  let apiKeyRepo: jest.Mocked<Repository<ApiKey>>;
 
   const agencyId = "11111111-1111-1111-1111-111111111111";
   const actorId = "22222222-2222-2222-2222-222222222222";
@@ -14,7 +16,15 @@ describe("AuditService (Unit)", () => {
       findAndCount: jest.fn().mockResolvedValue([[], 0]),
     } as unknown as jest.Mocked<Repository<AuditLog>>;
 
-    service = new AuditService(auditLogRepo);
+    userRepo = {
+      find: jest.fn().mockResolvedValue([{ id: actorId, email: "user@agency.com" }]),
+    } as unknown as jest.Mocked<Repository<User>>;
+
+    apiKeyRepo = {
+      find: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<Repository<ApiKey>>;
+
+    service = new AuditService(auditLogRepo, userRepo, apiKeyRepo);
   });
 
   describe("list", () => {
@@ -52,6 +62,7 @@ describe("AuditService (Unit)", () => {
         action: "campaign.created",
         actorType: AuditActorType.USER,
         actorId,
+        actorLabel: "user@agency.com",
         resourceType: "campaign",
         resourceId: "camp-1",
         ipAddress: "127.0.0.1",
